@@ -1,3 +1,4 @@
+import os
 import io
 import re
 import qrcode
@@ -169,5 +170,3 @@ def generate_formatted_docx(ai_text: str, chapter_name: str) -> str:
     doc.save(output_filename)
     
     return output_filename
-
-import os # Garantindo importação do os para a linha base_name = os.path.splitext...

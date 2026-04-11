@@ -61,11 +61,33 @@ def process_chapter_text(chapter_text: str, previous_summaries: str, api_key: st
     if api_key:
         genai.configure(api_key=api_key)
     
-    # O modelo gemini-1.5-pro suporta "system_instruction" para definir a persona.
-    model = genai.GenerativeModel(
-        model_name="gemini-1.5-pro",
-        system_instruction=SYSTEM_INSTRUCTION
-    )
+    # Busca os modelos disponíveis para esta chave de API
+    available_models = []
+    try:
+        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        print(f"Modelos disponíveis: {available_models}")
+    except Exception as e:
+        print(f"Erro ao listar modelos: {e}")
+
+    # Ordem de preferência de modelos
+    target_models = [
+        "models/gemini-2.5-pro",
+        "models/gemini-2.5-flash",
+        "models/gemini-pro-latest",
+        "models/gemini-flash-latest",
+        "models/gemini-2.0-flash",
+        "models/gemini-1.5-pro", 
+        "models/gemini-1.5-flash", 
+        "models/gemini-pro"
+    ]
+    
+    valid_models = []
+    for tm in target_models:
+        if tm in available_models or tm.replace("models/", "") in available_models:
+            valid_models.append(tm.replace("models/", ""))
+            
+    if not valid_models:
+        valid_models = ["gemini-2.0-flash"] # Fallback garantido
     
     prompt = f"""
 Você deve revisar e reescrever o texto do capítulo fornecido abaixo.
@@ -90,11 +112,47 @@ TEXTO DO CAPÍTULO A SER REVISADO:
 {chapter_text}
 """
 
-    response = model.generate_content(
-        prompt,
-        generation_config=genai.GenerationConfig(
-            temperature=0.3, # Baixa temperatura para manter a resposta mais determinística e técnica
-        )
-    )
+    import time
     
-    return response.text
+    last_error = None
+    
+    for selected_model in valid_models:
+        print(f"Tentando modelo: {selected_model}...")
+        
+        model = genai.GenerativeModel(
+            model_name=selected_model,
+            system_instruction=SYSTEM_INSTRUCTION
+        )
+        
+        max_retries = 2
+        retry_delay = 15 
+        
+        for attempt in range(max_retries):
+            try:
+                response = model.generate_content(
+                    prompt,
+                    generation_config=genai.GenerationConfig(
+                        temperature=0.3,
+                    )
+                )
+                print(f"Sucesso usando {selected_model}!")
+                return response.text
+            except Exception as e:
+                error_msg = str(e)
+                last_error = e
+                if "429" in error_msg or "quota" in error_msg.lower() or "exhausted" in error_msg.lower():
+                    if "limit: 0" in error_msg:
+                        print(f"Aviso: Modelo {selected_model} não possui cota disponível (Limit: 0). Pulando para o próximo...")
+                        break # Quebra o for attempt, vai para o próximo selected_model
+                        
+                    if attempt < max_retries - 1:
+                        print(f"Aviso (Rate Limit): Limite atingido em {selected_model}. Aguardando {retry_delay}s antes da tentativa {attempt + 2}...")
+                        time.sleep(retry_delay)
+                        retry_delay += 15
+                    else:
+                        print(f"Falha em {selected_model} após {max_retries} tentativas devido à cota.")
+                else:
+                    print(f"Erro inesperado no modelo {selected_model}: {error_msg}")
+                    break # Quebra o for attempt para erros que não são de Rate Limit
+                    
+    raise Exception(f"Todos os modelos tentados falharam. Último erro: {last_error}")
