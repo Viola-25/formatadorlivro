@@ -3,10 +3,11 @@ import io
 import re
 import qrcode
 from docx import Document
-from docx.shared import Pt, RGBColor, Inches
+from docx.shared import Pt, RGBColor, Inches, Cm, Mm
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_COLOR_INDEX
 from docx.oxml.ns import nsdecls
 from docx.oxml import parse_xml
+from docx2pdf import convert
 
 def set_cell_background(cell, color_hex: str):
     """
@@ -23,11 +24,21 @@ def generate_formatted_docx(ai_text: str, chapter_name: str) -> str:
     """
     doc = Document()
     
+    # Configura a primeira seção para o tamanho A5 (148 x 210 mm) e margens de 2 cm
+    section = doc.sections[0]
+    section.page_width = Mm(148)
+    section.page_height = Mm(210)
+    section.top_margin = Cm(2)
+    section.bottom_margin = Cm(2)
+    section.left_margin = Cm(2)
+    section.right_margin = Cm(2)
+    
     # Configura o estilo Normal (Fonte Arial, Tamanho 11) para o documento padrão
     style = doc.styles['Normal']
     font = style.font
     font.name = 'Arial'
     font.size = Pt(11)
+    style.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     
     lines = ai_text.split('\n')
     
@@ -170,3 +181,11 @@ def generate_formatted_docx(ai_text: str, chapter_name: str) -> str:
     doc.save(output_filename)
     
     return output_filename
+
+def convert_to_pdf(docx_path: str) -> str:
+    """
+    Converte o arquivo DOCX especificado em PDF usando o docx2pdf.
+    """
+    pdf_path = docx_path.replace(".docx", ".pdf")
+    convert(docx_path, pdf_path)
+    return pdf_path

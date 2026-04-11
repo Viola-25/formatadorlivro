@@ -6,7 +6,7 @@ from typing import Dict, Any
 
 # Importando as funções dos nossos módulos
 from engine import extract_text_from_docx, get_processed_chapters_summary, process_chapter_text
-from formatter import generate_formatted_docx
+from formatter import generate_formatted_docx, convert_to_pdf
 
 PROGRESS_FILE = 'progresso.json'
 OUTPUT_DIR = 'output'
@@ -31,7 +31,7 @@ def load_progress() -> Dict[str, Any]:
     # Estado inicial padrão
     return {
         "status_capitulos": {},
-        "glossario_dinamico": {}
+        "indice_capitulos": {}
     }
 
 def save_progress(state: Dict[str, Any]) -> None:
@@ -51,11 +51,13 @@ def update_chapter_status(state: Dict[str, Any], chapter_name: str, status: str)
     state["status_capitulos"][chapter_name] = status
     save_progress(state)
 
-def add_glossary_term(state: Dict[str, Any], term: str, definition: str) -> None:
+def update_chapter_index(state: Dict[str, Any], title: str, subtopics: list) -> None:
     """
-    Adiciona um novo termo ao glossário dinâmico no estado e salva no arquivo.
+    Salva os dados do índice (título e subtópicos) no estado e atualiza o arquivo.
     """
-    state["glossario_dinamico"][term] = definition
+    if "indice_capitulos" not in state:
+        state["indice_capitulos"] = {}
+    state["indice_capitulos"][title] = subtopics
     save_progress(state)
 
 def process_files(uploaded_files, api_key: str):
@@ -105,6 +107,28 @@ def process_files(uploaded_files, api_key: str):
             status_text.text(f"Enviando {file.name} para a IA...")
             ai_text = process_chapter_text(chapter_text, previous_summaries, api_key)
             
+            # 4.5 Extrair dados do Índice e remover do texto principal
+            if "[DADOS_INDICE]" in ai_text:
+                parts = ai_text.split("[DADOS_INDICE]")
+                ai_text = parts[0].strip() # Atualiza o texto para remover a tag e o JSON
+                json_str = parts[1].strip()
+                
+                # Limpar marcadores de bloco de código markdown (```json ... ```) se existirem
+                if json_str.startswith("```json"):
+                    json_str = json_str[7:]
+                elif json_str.startswith("```"):
+                    json_str = json_str[3:]
+                if json_str.endswith("```"):
+                    json_str = json_str[:-3]
+                
+                try:
+                    indice_data = json.loads(json_str.strip())
+                    title = indice_data.get("titulo_capitulo", f"Capítulo: {file.name}")
+                    subtopics = indice_data.get("subtopicos", [])
+                    update_chapter_index(st.session_state.app_state, title, subtopics)
+                except json.JSONDecodeError:
+                    st.warning(f"Aviso: Não foi possível processar o JSON de índice para {file.name}.")
+
             # 5. Gerar arquivo DOCX formatado
             status_text.text(f"Formatando e gerando DOCX para {file.name}...")
             output_filename = generate_formatted_docx(ai_text, file.name)
@@ -113,6 +137,13 @@ def process_files(uploaded_files, api_key: str):
             final_path = os.path.join(OUTPUT_DIR, output_filename)
             if os.path.exists(output_filename):
                 os.rename(output_filename, final_path)
+            
+            # 6. Gerar PDF
+            status_text.text(f"Gerando PDF para {file.name}...")
+            try:
+                convert_to_pdf(final_path)
+            except Exception as e:
+                st.warning(f"Não foi possível converter {file.name} para PDF. O docx2pdf requer o Microsoft Word instalado (Windows/Mac). Erro: {e}")
             
             # Atualiza o status
             # Como simplificação, criamos um pseudo-resumo para manter a coesão. 
@@ -159,31 +190,34 @@ def main():
     st.sidebar.markdown("---")
     st.sidebar.header("Ações do Guia da APS")
     
-    # Área principal de upload
-    st.header("Upload de Arquivos")
-    uploaded_files = st.file_uploader(
-        "Selecione os arquivos para o Guia da APS", 
-        type=['docx', 'txt', 'png', 'jpg'], 
-        accept_multiple_files=True
-    )
+    aba1, aba2 = st.tabs(['📚 Processador', '🎨 Configuração e Preview'])
     
-    if uploaded_files:
-        st.success(f"{len(uploaded_files)} arquivo(s) carregado(s) na sessão!")
+    with aba1:
+        # Área principal de upload
+        st.header("Upload de Arquivos")
+        uploaded_files = st.file_uploader(
+            "Selecione os arquivos para o Guia da APS", 
+            type=['docx', 'txt', 'png', 'jpg'], 
+            accept_multiple_files=True
+        )
         
-        # Botão de iniciar processamento na barra lateral
-        if st.sidebar.button("Iniciar Processamento", use_container_width=True):
-            if uploaded_files:
-                process_files(uploaded_files, api_key)
-            else:
-                st.sidebar.warning("Nenhum arquivo para processar.")
-                
-        st.subheader("Arquivos na fila:")
-        for file in uploaded_files:
-            st.text(f"📄 {file.name}")
+        if uploaded_files:
+            st.success(f"{len(uploaded_files)} arquivo(s) carregado(s) na sessão!")
             
-            # Adiciona ao rastreamento com status Pendente
-            if file.name not in st.session_state.app_state["status_capitulos"]:
-                update_chapter_status(st.session_state.app_state, file.name, "Pendente")
+            # Botão de iniciar processamento na barra lateral
+            if st.sidebar.button("Iniciar Processamento", use_container_width=True):
+                if uploaded_files:
+                    process_files(uploaded_files, api_key)
+                else:
+                    st.sidebar.warning("Nenhum arquivo para processar.")
+                    
+            st.subheader("Arquivos na fila:")
+            for file in uploaded_files:
+                st.text(f"📄 {file.name}")
+                
+                # Adiciona ao rastreamento com status Pendente
+                if file.name not in st.session_state.app_state["status_capitulos"]:
+                    update_chapter_status(st.session_state.app_state, file.name, "Pendente")
 
     # Botão para baixar arquivos processados
     st.sidebar.markdown("---")
@@ -194,42 +228,89 @@ def main():
             for file_name in files:
                 file_path = os.path.join(OUTPUT_DIR, file_name)
                 with open(file_path, "rb") as f:
+                    if file_name.endswith('.docx'):
+                        mime_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    elif file_name.endswith('.pdf'):
+                        mime_type = "application/pdf"
+                    else:
+                        mime_type = "application/octet-stream"
+                        
                     st.sidebar.download_button(
                         label=f"Baixar {file_name}",
                         data=f,
                         file_name=file_name,
-                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        mime=mime_type,
                         use_container_width=True
                     )
         else:
             st.sidebar.info("Nenhum arquivo processado disponível.")
             
-    # Exibição do estado atual do projeto
-    st.markdown("---")
-    st.header("Status Atual do Projeto")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("Status dos Capítulos")
-        status_data = st.session_state.app_state.get("status_capitulos", {})
-        if status_data:
-            for cap, status in status_data.items():
-                if isinstance(status, dict):
-                    st.write(f"- **{cap}**: `{status.get('status')}`")
-                else:
-                    st.write(f"- **{cap}**: `{status}`")
-        else:
-            st.info("Nenhum capítulo processado ainda.")
+    with aba1:
+        # Exibição do estado atual do projeto
+        st.markdown("---")
+        st.header("Status Atual do Projeto")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("Status dos Capítulos")
+            status_data = st.session_state.app_state.get("status_capitulos", {})
+            if status_data:
+                for cap, status in status_data.items():
+                    if isinstance(status, dict):
+                        st.write(f"- **{cap}**: `{status.get('status')}`")
+                    else:
+                        st.write(f"- **{cap}**: `{status}`")
+            else:
+                st.info("Nenhum capítulo processado ainda.")
+                
+        with col2:
+            st.subheader("Índice da Obra")
+            indice_data = st.session_state.app_state.get("indice_capitulos", {})
+            if indice_data:
+                for title, subtopics in indice_data.items():
+                    st.markdown(f"**{title}**")
+                    for topic in subtopics:
+                        st.markdown(f"- {topic}")
+                    st.write("") # Espaçamento entre capítulos
+            else:
+                st.info("O índice está vazio.")
+                
+    with aba2:
+        st.header("Configurações Visuais")
+        
+        col_config1, col_config2 = st.columns(2)
+        with col_config1:
+            font_size = st.slider("Tamanho da Fonte Padrão (pt)", min_value=8, max_value=24, value=11)
+        with col_config2:
+            box_resumo_color = st.color_picker("Cor de Fundo do BOX_RESUMO", value="#D3D3D3")
             
-    with col2:
-        st.subheader("Glossário Dinâmico")
-        glossario_data = st.session_state.app_state.get("glossario_dinamico", {})
-        if glossario_data:
-            for term, definition in glossario_data.items():
-                st.write(f"- **{term}**: {definition}")
-        else:
-            st.info("O glossário está vazio.")
+        st.markdown("---")
+        st.subheader("Preview em Tempo Real")
+        
+        preview_html = f'''
+        <div style="font-family: Arial, sans-serif; font-size: {font_size}pt; text-align: justify; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #fff; color: #000;">
+            <p><strong>Texto Normal:</strong> Este é um exemplo de parágrafo padrão no seu documento final. Ele acompanha o tamanho da fonte que você escolher e possui alinhamento justificado, garantindo que o layout final do DOCX lembre o formato clássico de um livro.</p>
+            
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+                <tr>
+                    <td style="background-color: {box_resumo_color}; padding: 12px; border: 1px solid #666;">
+                        <strong>[BOX_RESUMO]</strong><br>
+                        Aqui ficam os pontos-chave e essenciais do capítulo. Esta caixa de destaque simula exatamente a tabela gerada no Word, refletindo a cor de fundo selecionada.
+                    </td>
+                </tr>
+            </table>
+            
+            <p style="margin-left: 48px; font-weight: bold; font-style: italic;">
+                [BOX_RECOMENDACAO] Esta formatação é utilizada para destacar intervenções clínicas importantes ou condutas recomendadas, aplicando negrito, itálico e recuo de parágrafo.
+            </p>
+            
+            <p style="margin-left: 48px; font-weight: bold; font-style: italic; color: rgb(180, 0, 0);">
+                [BOX_ATENCAO] Esta formatação destaca riscos, contraindicações ou alertas clínicos cruciais, aplicando os mesmos estilos da recomendação, mas alterando a cor da fonte para vermelho escuro.
+            </p>
+        </div>
+        '''
+        st.markdown(preview_html, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
