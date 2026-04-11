@@ -2,6 +2,7 @@ import streamlit as st
 import json
 import os
 import time
+import re
 from typing import Dict, Any
 
 # Importando as funções dos nossos módulos
@@ -108,6 +109,7 @@ def process_files(uploaded_files, api_key: str):
             ai_text = process_chapter_text(chapter_text, previous_summaries, api_key)
             
             # 4.5 Extrair dados do Índice e remover do texto principal
+            title = f"Capítulo: {file.name}"
             if "[DADOS_INDICE]" in ai_text:
                 parts = ai_text.split("[DADOS_INDICE]")
                 ai_text = parts[0].strip() # Atualiza o texto para remover a tag e o JSON
@@ -128,6 +130,11 @@ def process_files(uploaded_files, api_key: str):
                     update_chapter_index(st.session_state.app_state, title, subtopics)
                 except json.JSONDecodeError:
                     st.warning(f"Aviso: Não foi possível processar o JSON de índice para {file.name}.")
+                    
+            # Salvar o texto base da IA para edição posterior
+            ai_text_path = os.path.join(TEMP_DIR, f"{file.name}.ai.txt")
+            with open(ai_text_path, "w", encoding="utf-8") as f:
+                f.write(ai_text)
 
             # 5. Gerar arquivo DOCX formatado
             status_text.text(f"Formatando e gerando DOCX para {file.name}...")
@@ -150,7 +157,8 @@ def process_files(uploaded_files, api_key: str):
             # Em produção a IA poderia retornar o resumo num formato JSON.
             st.session_state.app_state["status_capitulos"][file.name] = {
                 "status": "Concluído",
-                "resumo": f"Capítulo {file.name} revisado e formatado."
+                "resumo": f"Capítulo {file.name} revisado e formatado.",
+                "titulo_indice": title
             }
             save_progress(st.session_state.app_state)
             
@@ -190,7 +198,7 @@ def main():
     st.sidebar.markdown("---")
     st.sidebar.header("Ações do Guia da APS")
     
-    aba1, aba2 = st.tabs(['📚 Processador', '🎨 Configuração e Preview'])
+    aba1, aba2, aba3 = st.tabs(['📚 Processador', '🎨 Configuração e Preview', '✏️ Gerenciar Capítulos'])
     
     with aba1:
         # Área principal de upload
@@ -311,6 +319,71 @@ def main():
         </div>
         '''
         st.markdown(preview_html, unsafe_allow_html=True)
+        
+    with aba3:
+        st.header("Gerenciar e Editar Capítulos")
+        
+        status_data = st.session_state.app_state.get("status_capitulos", {})
+        if not status_data:
+            st.info("Nenhum capítulo processado para gerenciar.")
+        else:
+            selected_chapter = st.selectbox("Selecione um capítulo", list(status_data.keys()))
+            
+            col_btn1, col_btn2 = st.columns(2)
+            with col_btn1:
+                if st.button("🗑️ Excluir Capítulo", use_container_width=True):
+                    info = st.session_state.app_state["status_capitulos"][selected_chapter]
+                    if isinstance(info, dict) and "titulo_indice" in info:
+                        idx_title = info["titulo_indice"]
+                        if "indice_capitulos" in st.session_state.app_state and idx_title in st.session_state.app_state["indice_capitulos"]:
+                            del st.session_state.app_state["indice_capitulos"][idx_title]
+                    
+                    del st.session_state.app_state["status_capitulos"][selected_chapter]
+                    save_progress(st.session_state.app_state)
+                    
+                    base_name = os.path.splitext(selected_chapter)[0] if '.' in selected_chapter else selected_chapter
+                    safe_chapter_name = re.sub(r'[\\/*?:"<>|]', "", base_name).replace(" ", "_")
+                    
+                    docx_path = os.path.join(OUTPUT_DIR, f"Capitulo_{safe_chapter_name}_Revisado.docx")
+                    pdf_path = docx_path.replace(".docx", ".pdf")
+                    ai_txt_path = os.path.join(TEMP_DIR, f"{selected_chapter}.ai.txt")
+                    
+                    for p in [docx_path, pdf_path, ai_txt_path]:
+                        if os.path.exists(p):
+                            os.remove(p)
+                            
+                    st.success(f"Capítulo {selected_chapter} excluído com sucesso!")
+                    time.sleep(1)
+                    st.rerun()
+            
+            st.markdown("---")
+            st.subheader("Editar Texto (Pré-formatação)")
+            ai_txt_path = os.path.join(TEMP_DIR, f"{selected_chapter}.ai.txt")
+            
+            if os.path.exists(ai_txt_path):
+                with open(ai_txt_path, "r", encoding="utf-8") as f:
+                    current_text = f.read()
+                    
+                edited_text = st.text_area("Altere o texto, ajuste as tags (ex: [BOX_RESUMO]) e clique em reformatar para atualizar os arquivos.", value=current_text, height=400)
+                
+                if st.button("💾 Salvar e Reformatar Arquivos", use_container_width=True):
+                    with open(ai_txt_path, "w", encoding="utf-8") as f:
+                        f.write(edited_text)
+                    
+                    with st.spinner("Reformatando DOCX e PDF..."):
+                        output_filename = generate_formatted_docx(edited_text, selected_chapter)
+                        final_path = os.path.join(OUTPUT_DIR, output_filename)
+                        if os.path.exists(output_filename):
+                            os.rename(output_filename, final_path)
+                            
+                        try:
+                            convert_to_pdf(final_path)
+                        except Exception as e:
+                            st.warning(f"Erro ao gerar PDF: {e}")
+                            
+                    st.success("Arquivos atualizados com sucesso!")
+            else:
+                st.warning("O texto base deste capítulo não foi encontrado. Processe-o novamente para habilitar a edição.")
 
 if __name__ == "__main__":
     main()
