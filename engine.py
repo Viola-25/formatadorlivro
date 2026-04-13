@@ -2,6 +2,7 @@ import docx
 import google.generativeai as genai
 import json
 import os
+import time
 from typing import Dict, Any
 
 STYLE_GUIDE = (
@@ -23,7 +24,7 @@ def extract_text_from_docx(file_path: str) -> str:
         doc = docx.Document(file_path)
         return '\n'.join([para.text for para in doc.paragraphs])
     except Exception as e:
-        raise Exception(f"Erro ao ler o arquivo {file_path}: {e}")
+        raise Exception(f"❌ Erro ao ler o arquivo '{file_path}': {e}")
 
 def get_processed_chapters_summary(progress_file: str = 'progresso.json') -> str:
     """
@@ -50,7 +51,7 @@ def get_processed_chapters_summary(progress_file: str = 'progresso.json') -> str
             
             return "\n\n".join(resumos)
     except Exception as e:
-        print(f"Erro ao ler resumos anteriores: {e}")
+        print(f"⚠️ Erro ao ler resumos anteriores: {e}")
         return ""
 
 def process_chapter_text(chapter_text: str, previous_summaries: str, api_key: str = None) -> str:
@@ -65,9 +66,9 @@ def process_chapter_text(chapter_text: str, previous_summaries: str, api_key: st
     available_models = []
     try:
         available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        print(f"Modelos disponíveis: {available_models}")
+        print(f"🔍 Modelos disponíveis mapeados na API.")
     except Exception as e:
-        print(f"Erro ao listar modelos: {e}")
+        print(f"⚠️ Erro ao listar modelos: {e}")
 
     # Ordem de preferência de modelos
     target_models = [
@@ -83,8 +84,9 @@ def process_chapter_text(chapter_text: str, previous_summaries: str, api_key: st
     
     valid_models = []
     for tm in target_models:
-        if tm in available_models or tm.replace("models/", "") in available_models:
-            valid_models.append(tm.replace("models/", ""))
+        clean_name = tm.replace("models/", "")
+        if tm in available_models or clean_name in available_models:
+            valid_models.append(clean_name)
             
     if not valid_models:
         valid_models = ["gemini-2.0-flash"] # Fallback garantido
@@ -113,13 +115,13 @@ CONTEXTO DOS CAPÍTULOS ANTERIORES:
 TEXTO DO CAPÍTULO A SER REVISADO:
 {chapter_text}
 """
-
-    import time
     
     last_error = None
     
+    print("\n" + "="*50)
+    
     for selected_model in valid_models:
-        print(f"Tentando modelo: {selected_model}...")
+        print(f"⚙️ Tentando processar com o modelo: {selected_model}...")
         
         model = genai.GenerativeModel(
             model_name=selected_model,
@@ -137,24 +139,25 @@ TEXTO DO CAPÍTULO A SER REVISADO:
                         temperature=0.3,
                     )
                 )
-                print(f"Sucesso usando {selected_model}!")
+                print(f"✅ Sucesso usando {selected_model}!")
+                print("="*50 + "\n")
                 return response.text
             except Exception as e:
                 error_msg = str(e)
                 last_error = e
                 if "429" in error_msg or "quota" in error_msg.lower() or "exhausted" in error_msg.lower():
                     if "limit: 0" in error_msg:
-                        print(f"Aviso: Modelo {selected_model} não possui cota disponível (Limit: 0). Pulando para o próximo...")
+                        print(f"⚠️ Aviso: Modelo {selected_model} não possui cota disponível (Limit: 0). Pulando para o próximo...")
                         break # Quebra o for attempt, vai para o próximo selected_model
                         
                     if attempt < max_retries - 1:
-                        print(f"Aviso (Rate Limit): Limite atingido em {selected_model}. Aguardando {retry_delay}s antes da tentativa {attempt + 2}...")
+                        print(f"⏳ Aviso (Rate Limit): Limite atingido em {selected_model}. Aguardando {retry_delay}s antes da nova tentativa...")
                         time.sleep(retry_delay)
                         retry_delay += 15
                     else:
-                        print(f"Falha em {selected_model} após {max_retries} tentativas devido à cota.")
+                        print(f"❌ Falha em {selected_model} após {max_retries} tentativas devido à cota.")
                 else:
-                    print(f"Erro inesperado no modelo {selected_model}: {error_msg}")
+                    print(f"❌ Erro inesperado no modelo {selected_model}: {error_msg}")
                     break # Quebra o for attempt para erros que não são de Rate Limit
                     
-    raise Exception(f"Todos os modelos tentados falharam. Último erro: {last_error}")
+    raise Exception(f"❌ Todos os modelos tentados falharam. Último erro: {last_error}")

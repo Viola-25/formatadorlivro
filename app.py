@@ -67,17 +67,19 @@ def process_files(uploaded_files, api_key: str):
     envia para IA e formata o resultado.
     """
     if not api_key:
-        st.sidebar.error("Por favor, insira a Chave da API (Gemini) antes de processar.")
+        st.error("🔑 Por favor, insira a Chave da API (Gemini) na barra lateral antes de processar.")
         return
 
-    progress_bar = st.progress(0)
-    status_text = st.empty()
+    st.markdown("### ⚙️ Processamento em Andamento")
+    progress_bar = st.progress(0, text="Iniciando...")
+    status_container = st.container(border=True)
+    status_text = status_container.empty()
     
     total_files = len(uploaded_files)
     
     for i, file in enumerate(uploaded_files):
         try:
-            status_text.text(f"Processando arquivo {i+1} de {total_files}: {file.name}")
+            status_text.info(f"**Processando arquivo {i+1} de {total_files}:** `{file.name}`")
             
             # Se já está concluído e tem arquivo no disco, podemos pular (opcional). 
             # Aqui vamos re-processar se o usuário clicou no botão.
@@ -96,7 +98,7 @@ def process_files(uploaded_files, api_key: str):
                 with open(temp_path, "r", encoding="utf-8") as f:
                     chapter_text = f.read()
             else:
-                status_text.text(f"Ignorando arquivo não suportado para texto: {file.name}")
+                status_text.warning(f"Ignorando arquivo não suportado para texto: {file.name}")
                 update_chapter_status(st.session_state.app_state, file.name, "Ignorado (Não é texto)")
                 progress_bar.progress((i + 1) / total_files)
                 continue
@@ -105,7 +107,7 @@ def process_files(uploaded_files, api_key: str):
             previous_summaries = get_processed_chapters_summary(PROGRESS_FILE)
             
             # 4. Processar com a IA
-            status_text.text(f"Enviando {file.name} para a IA...")
+            status_text.info(f"**Analisando com IA:** `{file.name}` (Isso pode levar alguns instantes...)")
             ai_text = process_chapter_text(chapter_text, previous_summaries, api_key)
             
             # 4.5 Extrair dados do Índice e remover do texto principal
@@ -137,7 +139,7 @@ def process_files(uploaded_files, api_key: str):
                 f.write(ai_text)
 
             # 5. Gerar arquivo DOCX formatado
-            status_text.text(f"Formatando e gerando DOCX para {file.name}...")
+            status_text.info(f"**Aplicando Guia de Estilos e formatando DOCX:** `{file.name}`")
             output_filename = generate_formatted_docx(ai_text, file.name)
             
             # Mover arquivo final para OUTPUT_DIR
@@ -146,7 +148,7 @@ def process_files(uploaded_files, api_key: str):
                 os.rename(output_filename, final_path)
             
             # 6. Gerar PDF
-            status_text.text(f"Gerando PDF para {file.name}...")
+            status_text.info(f"**Convertendo para PDF:** `{file.name}`")
             try:
                 convert_to_pdf(final_path)
             except Exception as e:
@@ -166,13 +168,15 @@ def process_files(uploaded_files, api_key: str):
             st.error(f"Erro ao processar {file.name}: {e}")
             update_chapter_status(st.session_state.app_state, file.name, f"Erro: {str(e)}")
             
-        progress_bar.progress((i + 1) / total_files)
+        progress_bar.progress((i + 1) / total_files, text=f"Concluído {i+1} de {total_files}")
 
-    status_text.text("Processamento concluído!")
-    st.success("Todos os arquivos foram processados com sucesso!")
+    status_text.success("✨ Processamento concluído com sucesso!")
+    st.toast("Todos os arquivos foram processados!", icon="✅")
+    st.balloons()
     # Limpa barra de progresso após 3 segundos
     time.sleep(3)
     progress_bar.empty()
+    status_container.empty()
 
 def main():
     """
@@ -184,126 +188,130 @@ def main():
         layout="wide"
     )
     
-    st.title("📚 Gerenciador de Revisão e Formatação - Guia da APS")
-    st.markdown("Faça o upload dos capítulos e imagens para iniciar o processo de revisão e formatação.")
+    st.title("📚 Gerenciador de Revisão e Formatação")
+    st.markdown("Bem-vindo ao motor de padronização do **Guia da APS**. Faça o upload dos capítulos para iniciar a revisão guiada por IA.")
     
     # Inicializa e carrega o estado na session_state
     if 'app_state' not in st.session_state:
         st.session_state.app_state = load_progress()
     
     # Configura a barra lateral
-    st.sidebar.header("Configurações")
-    api_key = st.sidebar.text_input("Chave da API Gemini", type="password")
-    
-    st.sidebar.markdown("---")
-    st.sidebar.header("Ações do Guia da APS")
-    
-    aba1, aba2, aba3 = st.tabs(['📚 Processador', '🎨 Configuração e Preview', '✏️ Gerenciar Capítulos'])
+    with st.sidebar:
+        st.header("⚙️ Configurações")
+        api_key = st.text_input("Chave da API Gemini", type="password", help="Insira sua chave da API do Google Gemini para habilitar a inteligência artificial.")
+        
+        st.divider()
+        st.header("📥 Arquivos Processados")
+        
+        # Botões para baixar arquivos processados
+        if os.path.exists(OUTPUT_DIR):
+            files = [f for f in os.listdir(OUTPUT_DIR) if not f.startswith('.')]
+            if files:
+                for file_name in files:
+                    file_path = os.path.join(OUTPUT_DIR, file_name)
+                    with open(file_path, "rb") as f:
+                        if file_name.endswith('.docx'):
+                            mime_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            icon = "📄"
+                        elif file_name.endswith('.pdf'):
+                            mime_type = "application/pdf"
+                            icon = "📕"
+                        else:
+                            mime_type = "application/octet-stream"
+                            icon = "📎"
+                            
+                        st.download_button(
+                            label=f"{icon} Baixar {file_name}",
+                            data=f,
+                            file_name=file_name,
+                            mime=mime_type,
+                            use_container_width=True
+                        )
+            else:
+                st.info("Nenhum arquivo processado disponível ainda.")
+        else:
+            st.info("Pasta de saída não encontrada.")
+            
+    # Abas principais
+    aba1, aba2, aba3 = st.tabs(['🚀 Processador', '🎨 Configuração e Preview', '✏️ Gerenciar Capítulos'])
     
     with aba1:
         # Área principal de upload
-        st.header("Upload de Arquivos")
-        uploaded_files = st.file_uploader(
-            "Selecione os arquivos para o Guia da APS", 
-            type=['docx', 'txt', 'png', 'jpg'], 
-            accept_multiple_files=True
-        )
+        with st.container(border=True):
+            st.subheader("1. Selecione os Arquivos Brutos")
+            uploaded_files = st.file_uploader(
+                "Faça o upload dos documentos originais (.docx, .txt) para iniciar.", 
+                type=['docx', 'txt', 'png', 'jpg'], 
+                accept_multiple_files=True
+            )
         
         if uploaded_files:
-            st.success(f"{len(uploaded_files)} arquivo(s) carregado(s) na sessão!")
+            st.info(f"📁 **{len(uploaded_files)} arquivo(s)** carregado(s) e prontos para processamento na fila.")
             
-            # Botão de iniciar processamento na barra lateral
-            if st.sidebar.button("Iniciar Processamento", use_container_width=True):
-                if uploaded_files:
-                    process_files(uploaded_files, api_key)
-                else:
-                    st.sidebar.warning("Nenhum arquivo para processar.")
-                    
-            st.subheader("Arquivos na fila:")
+            # Registrar pendentes silenciosamente
             for file in uploaded_files:
-                st.text(f"📄 {file.name}")
-                
                 # Adiciona ao rastreamento com status Pendente
                 if file.name not in st.session_state.app_state["status_capitulos"]:
                     update_chapter_status(st.session_state.app_state, file.name, "Pendente")
-
-    # Botão para baixar arquivos processados
-    st.sidebar.markdown("---")
-    st.sidebar.header("Arquivos Processados")
-    if os.path.exists(OUTPUT_DIR):
-        files = os.listdir(OUTPUT_DIR)
-        if files:
-            for file_name in files:
-                file_path = os.path.join(OUTPUT_DIR, file_name)
-                with open(file_path, "rb") as f:
-                    if file_name.endswith('.docx'):
-                        mime_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    elif file_name.endswith('.pdf'):
-                        mime_type = "application/pdf"
-                    else:
-                        mime_type = "application/octet-stream"
-                        
-                    st.sidebar.download_button(
-                        label=f"Baixar {file_name}",
-                        data=f,
-                        file_name=file_name,
-                        mime=mime_type,
-                        use_container_width=True
-                    )
-        else:
-            st.sidebar.info("Nenhum arquivo processado disponível.")
+                    
+            # Botão de iniciar processamento na tela principal
+            if st.button("▶️ Iniciar Processamento Inteligente", type="primary", use_container_width=True):
+                process_files(uploaded_files, api_key)
             
-    with aba1:
         # Exibição do estado atual do projeto
-        st.markdown("---")
-        st.header("Status Atual do Projeto")
+        st.divider()
+        st.header("📊 Resumo do Projeto")
         
         col1, col2 = st.columns(2)
         
         with col1:
-            st.subheader("Status dos Capítulos")
-            status_data = st.session_state.app_state.get("status_capitulos", {})
-            if status_data:
-                for cap, status in status_data.items():
-                    if isinstance(status, dict):
-                        st.write(f"- **{cap}**: `{status.get('status')}`")
-                    else:
-                        st.write(f"- **{cap}**: `{status}`")
-            else:
-                st.info("Nenhum capítulo processado ainda.")
+            with st.container(border=True):
+                st.subheader("📑 Status dos Capítulos")
+                status_data = st.session_state.app_state.get("status_capitulos", {})
+                if status_data:
+                    for cap, status in status_data.items():
+                        if isinstance(status, dict):
+                            st.markdown(f"📄 **{cap}** <br/> └ Status: `{status.get('status')}`", unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"📄 **{cap}** <br/> └ Status: `{status}`", unsafe_allow_html=True)
+                else:
+                    st.info("Nenhum capítulo na fila ou processado ainda.")
                 
         with col2:
-            st.subheader("Índice da Obra")
-            indice_data = st.session_state.app_state.get("indice_capitulos", {})
-            if indice_data:
-                for title, subtopics in indice_data.items():
-                    st.markdown(f"**{title}**")
-                    for topic in subtopics:
-                        st.markdown(f"- {topic}")
-                    st.write("") # Espaçamento entre capítulos
-            else:
-                st.info("O índice está vazio.")
+            with st.container(border=True):
+                st.subheader("🗂️ Índice Estruturado da Obra")
+                indice_data = st.session_state.app_state.get("indice_capitulos", {})
+                if indice_data:
+                    for title, subtopics in indice_data.items():
+                        st.markdown(f"**📘 {title}**")
+                        for topic in subtopics:
+                            st.markdown(f"- {topic}")
+                        st.markdown("<br/>", unsafe_allow_html=True)
+                else:
+                    st.info("O índice será gerado automaticamente após o processamento.")
                 
     with aba2:
         st.header("Configurações Visuais")
+        st.markdown("Ajuste as preferências de formatação. *Nota: Este é um preview visual do guia de estilo que será aplicado no Word.*")
         
         col_config1, col_config2 = st.columns(2)
         with col_config1:
             font_size = st.slider("Tamanho da Fonte Padrão (pt)", min_value=8, max_value=24, value=11)
         with col_config2:
-            box_resumo_color = st.color_picker("Cor de Fundo do BOX_RESUMO", value="#D3D3D3")
+            box_resumo_color = st.color_picker("Cor de Fundo do Box de Resumo", value="#E8F0FE")
             
-        st.markdown("---")
-        st.subheader("Preview em Tempo Real")
+        st.divider()
+        st.subheader("👀 Preview em Tempo Real")
         
         preview_html = f'''
-        <div style="font-family: Arial, sans-serif; font-size: {font_size}pt; text-align: justify; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #fff; color: #000;">
-            <p><strong>Texto Normal:</strong> Este é um exemplo de parágrafo padrão no seu documento final. Ele acompanha o tamanho da fonte que você escolher e possui alinhamento justificado, garantindo que o layout final do DOCX lembre o formato clássico de um livro.</p>
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; font-size: {font_size}pt; text-align: justify; padding: 30px; border: 1px solid #ddd; border-radius: 8px; background-color: #fff; color: #333; box-shadow: 0 4px 8px rgba(0,0,0,0.05);">
+            <h2 style="color: #2C3E50; font-family: 'Segoe UI', Arial, sans-serif; margin-top: 0;">Título do Capítulo</h2>
+            <p>Este é um exemplo de parágrafo padrão no seu documento final. Ele acompanha o tamanho da fonte que você escolher e possui alinhamento justificado, garantindo que o layout final do DOCX mantenha o formato clássico e legível de um livro técnico de medicina.</p>
             
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
                 <tr>
-                    <td style="background-color: {box_resumo_color}; padding: 12px; border: 1px solid #666;">
-                        <strong>[BOX_RESUMO]</strong><br>
+                    <td style="background-color: {box_resumo_color}; padding: 16px; border-left: 5px solid #4A90E2; border-radius: 4px;">
+                        <strong style="color: #4A90E2; font-size: 1.1em;">PONTOS IMPORTANTES</strong><br><br>
                         Aqui ficam os pontos-chave e essenciais do capítulo. Esta caixa de destaque simula exatamente a tabela gerada no Word, refletindo a cor de fundo selecionada.
                     </td>
                 </tr>
@@ -325,9 +333,9 @@ def main():
         
         status_data = st.session_state.app_state.get("status_capitulos", {})
         if not status_data:
-            st.info("Nenhum capítulo processado para gerenciar.")
+            st.info("Nenhum capítulo processado para gerenciar. Por favor, processe arquivos na aba 'Processador' primeiro.")
         else:
-            selected_chapter = st.selectbox("Selecione um capítulo", list(status_data.keys()))
+            selected_chapter = st.selectbox("📌 Selecione um capítulo para revisar", list(status_data.keys()))
             
             col_btn1, col_btn2 = st.columns(2)
             with col_btn1:
@@ -352,19 +360,20 @@ def main():
                         if os.path.exists(p):
                             os.remove(p)
                             
-                    st.success(f"Capítulo {selected_chapter} excluído com sucesso!")
-                    time.sleep(1)
+                    st.toast(f"Capítulo {selected_chapter} excluído do histórico!", icon="🗑️")
+                    time.sleep(1.5)
                     st.rerun()
             
-            st.markdown("---")
-            st.subheader("Editar Texto (Pré-formatação)")
+            st.divider()
+            st.subheader("📝 Edição Manual do Texto (Pré-formatação)")
+            st.markdown("Faltou algo no texto gerado pela IA? Edite diretamente aqui antes de re-gerar o Word/PDF final.")
             ai_txt_path = os.path.join(TEMP_DIR, f"{selected_chapter}.ai.txt")
             
             if os.path.exists(ai_txt_path):
                 with open(ai_txt_path, "r", encoding="utf-8") as f:
                     current_text = f.read()
                     
-                edited_text = st.text_area("Altere o texto, ajuste as tags (ex: [BOX_RESUMO]) e clique em reformatar para atualizar os arquivos.", value=current_text, height=400)
+                edited_text = st.text_area("Texto cru com as Tags estruturais", value=current_text, height=450)
                 
                 if st.button("💾 Salvar e Reformatar Arquivos", use_container_width=True):
                     with open(ai_txt_path, "w", encoding="utf-8") as f:
@@ -381,9 +390,10 @@ def main():
                         except Exception as e:
                             st.warning(f"Erro ao gerar PDF: {e}")
                             
-                    st.success("Arquivos atualizados com sucesso!")
+                    st.success("✅ Arquivos reconstruídos com base nas suas edições com sucesso!")
+                    st.balloons()
             else:
-                st.warning("O texto base deste capítulo não foi encontrado. Processe-o novamente para habilitar a edição.")
+                st.warning("⚠️ O texto base deste capítulo não foi encontrado. Processe-o novamente na aba principal para habilitar a edição manual.")
 
 if __name__ == "__main__":
     main()
