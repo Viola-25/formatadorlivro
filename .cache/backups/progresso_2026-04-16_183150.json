@@ -1,0 +1,18 @@
+{
+    "status_capitulos": {
+        "Apoio Matricial na Atenção Primária à Saúde.docx": {
+            "status": "Concluído",
+            "resumo": "Capítulo Apoio Matricial na Atenção Primária à Saúde.docx revisado e formatado.",
+            "titulo_indice": "Apoio Matricial na Atenção Primária à Saúde"
+        }
+    },
+    "indice_capitulos": {
+        "Apoio Matricial na Atenção Primária à Saúde": [
+            "Conceituação e Dimensões do Apoio Matricial",
+            "Implementação e Desafios",
+            "Operacionalização na Prática",
+            "Perspectivas Futuras e Potencialidades",
+            "Considerações Finais"
+        ]
+    }
+}
