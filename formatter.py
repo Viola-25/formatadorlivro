@@ -100,27 +100,12 @@ def _to_superscript(number: int) -> str:
 
 
 def renumber_citations_and_format_superscript(text: str) -> str:
-    """Renomeia referências por ordem de ocorrência e converte para sobrescrito, suportando múltiplas citações como [3, 4]."""
-    citation_map = {}
-    counter = {'next': 1}
-
-    def replace(match):
-        # Extrai a string com os números (ex: "3, 4" ou "12") e divide pela vírgula
-        numeros_originais = match.group(1).split(',')
-        sobrescritos = []
-        
-        for num_str in numeros_originais:
-            num = num_str.strip()
-            if num not in citation_map:
-                citation_map[num] = counter['next']
-                counter['next'] += 1
-            sobrescritos.append(_to_superscript(citation_map[num]))
-            
-        # Junta os números sobrescritos com um espaço pequeno (ex: ³ ⁴)
-        return ' '.join(sobrescritos)
-
-    # A nova Regex captura grupos de números separados por vírgula dentro de colchetes
-    return re.sub(r'\[(\d+(?:\s*,\s*\d+)*)\]', replace, text)
+    """
+    Função desativada. 
+    Retorna o texto original sem alterações para preservar a ordem exata 
+    das referências e bibliografia enviadas pelo autor.
+    """
+    return text
 
 
 def generate_formatted_docx(ai_text: str, chapter_name: str) -> str:
