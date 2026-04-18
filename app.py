@@ -203,7 +203,12 @@ def process_files(uploaded_files: list, api_key: str) -> None:
             status_text.info(f"**Analisando com IA:** `{file.name}` (Isso pode levar alguns instantes...)")
             try:
                 logger.info(f"Enviando para IA: {file.name}")
-                ai_text = process_chapter_text(chapter_text, previous_summaries, api_key)
+                ai_text = process_chapter_text(
+                    chapter_text,
+                    previous_summaries,
+                    api_key,
+                    chapter_name=file.name
+                )
                 logger.debug(f"IA retornou {len(ai_text)} caracteres")
             except APIException as e:
                 logger.error(f"Erro da API ao processar {file.name}: {e}")

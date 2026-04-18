@@ -1,203 +1,134 @@
-2026-04-16 18:31:50,782 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_183150.json
-2026-04-16 18:36:24,554 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_183624.json
-2026-04-16 18:36:26,267 - BookFormatter - WARNING - Tentativa de processar sem API key
-2026-04-16 18:36:33,507 - BookFormatter - INFO - Iniciando processamento de 1 arquivo(s)
-2026-04-16 18:36:33,509 - BookFormatter - INFO - Processando arquivo: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 18:36:33,513 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_183633.json
-2026-04-16 18:36:33,516 - BookFormatter - INFO - Extraindo texto de: temp\Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 18:36:33,565 - BookFormatter - INFO - Resumos anteriores agregados: 0 capítulo(s)
-2026-04-16 18:36:33,566 - BookFormatter - INFO - Enviando para IA: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 18:36:33,566 - BookFormatter - INFO - Verificando cache para este capítulo...
-2026-04-16 18:36:34,611 - BookFormatter - INFO - ============================================================
-2026-04-16 18:36:34,612 - BookFormatter - INFO - Iniciando processamento de capítulo com IA
-2026-04-16 18:36:34,612 - BookFormatter - INFO - ============================================================
-2026-04-16 18:36:34,612 - BookFormatter - INFO - Tentando modelo: gemini-2.5-pro
-2026-04-16 18:36:34,955 - BookFormatter - WARNING - Modelo gemini-2.5-pro sem cota (Limit: 0). Pulando...
-2026-04-16 18:36:34,956 - BookFormatter - INFO - Tentando modelo: gemini-2.5-flash
-2026-04-16 18:37:20,385 - BookFormatter - INFO - ============================================================
-2026-04-16 18:37:20,386 - BookFormatter - INFO - Índice atualizado: Apoio Matricial na Atenção Primária à Saúde com 5 subtópicos
-2026-04-16 18:37:20,388 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_183720.json
-2026-04-16 18:37:20,390 - BookFormatter - INFO - Índice processado: Apoio Matricial na Atenção Primária à Saúde
-2026-04-16 18:37:20,391 - BookFormatter - INFO - Gerando DOCX: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 18:37:20,392 - BookFormatter - INFO - Gerando DOCX formatado para: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 18:37:20,788 - BookFormatter - INFO - Documento DOCX salvo: Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
-2026-04-16 18:37:20,789 - BookFormatter - INFO - DOCX gerado: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
-2026-04-16 18:37:20,790 - BookFormatter - INFO - Convertendo para PDF: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 18:37:20,790 - BookFormatter - INFO - Convertendo para PDF: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
-2026-04-16 18:37:47,410 - BookFormatter - INFO - PDF gerado com sucesso: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.pdf
-2026-04-16 18:37:47,411 - BookFormatter - INFO - PDF gerado com sucesso
-2026-04-16 18:37:47,412 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_183747.json
-2026-04-16 18:37:47,421 - BookFormatter - INFO - Processamento concluído: 1 sucesso(s), 0 erro(s)
-2026-04-16 18:49:39,989 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_184939.json
-2026-04-16 18:49:39,990 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-16 18:49:54,012 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_184954.json
-2026-04-16 18:49:54,014 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-16 18:50:06,883 - BookFormatter - INFO - Iniciando processamento de 1 arquivo(s)
-2026-04-16 18:50:06,885 - BookFormatter - INFO - Processando arquivo: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 18:50:06,887 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_185006.json
-2026-04-16 18:50:06,887 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-16 18:50:06,889 - BookFormatter - INFO - Extraindo texto de: temp\Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 18:50:06,918 - BookFormatter - INFO - Resumos anteriores agregados: 0 capítulo(s)
-2026-04-16 18:50:06,919 - BookFormatter - INFO - Enviando para IA: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 18:50:06,919 - BookFormatter - INFO - Verificando cache para este capítulo...
-2026-04-16 18:50:07,884 - BookFormatter - INFO - ============================================================
-2026-04-16 18:50:07,884 - BookFormatter - INFO - Iniciando processamento de capítulo com IA
-2026-04-16 18:50:07,884 - BookFormatter - INFO - ============================================================
-2026-04-16 18:50:07,884 - BookFormatter - INFO - Tentando modelo: gemini-2.5-pro
-2026-04-16 18:50:08,227 - BookFormatter - WARNING - Modelo gemini-2.5-pro sem cota (Limit: 0). Pulando...
-2026-04-16 18:50:08,227 - BookFormatter - INFO - Tentando modelo: gemini-2.5-flash
-2026-04-16 18:51:04,372 - BookFormatter - INFO - ============================================================
-2026-04-16 18:51:04,373 - BookFormatter - INFO - Índice atualizado: Apoio Matricial na Atenção Primária à Saúde com 5 subtópicos
-2026-04-16 18:51:04,374 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_185104.json
-2026-04-16 18:51:04,375 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-16 18:51:04,377 - BookFormatter - INFO - Índice processado: Apoio Matricial na Atenção Primária à Saúde
-2026-04-16 18:51:04,378 - BookFormatter - INFO - Gerando DOCX: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 18:51:04,379 - BookFormatter - INFO - Gerando DOCX formatado para: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 18:51:04,513 - BookFormatter - INFO - Documento DOCX salvo: Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
-2026-04-16 18:51:04,515 - BookFormatter - INFO - DOCX gerado: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
-2026-04-16 18:51:04,516 - BookFormatter - INFO - Convertendo para PDF: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 18:51:04,516 - BookFormatter - INFO - Convertendo para PDF: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
-2026-04-16 18:51:11,476 - BookFormatter - INFO - PDF gerado com sucesso: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.pdf
-2026-04-16 18:51:11,476 - BookFormatter - INFO - PDF gerado com sucesso
-2026-04-16 18:51:11,478 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_185111.json
-2026-04-16 18:51:11,478 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-16 18:51:11,493 - BookFormatter - INFO - Processamento concluído: 1 sucesso(s), 0 erro(s)
-2026-04-16 18:55:58,618 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_185558.json
-2026-04-16 18:55:58,619 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-16 18:56:04,276 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_185604.json
-2026-04-16 18:56:04,277 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-16 18:56:05,616 - BookFormatter - WARNING - Tentativa de processar sem API key
-2026-04-16 18:56:10,219 - BookFormatter - INFO - Iniciando processamento de 1 arquivo(s)
-2026-04-16 18:56:10,221 - BookFormatter - INFO - Processando arquivo: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 18:56:10,224 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_185610.json
-2026-04-16 18:56:10,226 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-16 18:56:10,230 - BookFormatter - INFO - Extraindo texto de: temp\Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 18:56:10,259 - BookFormatter - INFO - Resumos anteriores agregados: 0 capítulo(s)
-2026-04-16 18:56:10,260 - BookFormatter - INFO - Enviando para IA: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 18:56:10,260 - BookFormatter - INFO - Verificando cache para este capítulo...
-2026-04-16 18:56:11,229 - BookFormatter - INFO - ============================================================
-2026-04-16 18:56:11,229 - BookFormatter - INFO - Iniciando processamento de capítulo com IA
-2026-04-16 18:56:11,229 - BookFormatter - INFO - ============================================================
-2026-04-16 18:56:11,229 - BookFormatter - INFO - Tentando modelo: gemini-2.5-pro
-2026-04-16 18:56:11,575 - BookFormatter - WARNING - Modelo gemini-2.5-pro sem cota (Limit: 0). Pulando...
-2026-04-16 18:56:11,576 - BookFormatter - INFO - Tentando modelo: gemini-2.5-flash
-2026-04-16 18:56:31,624 - BookFormatter - WARNING - Rate limit atingido. Aguardando 15s...
-2026-04-16 18:57:51,398 - BookFormatter - INFO - ============================================================
-2026-04-16 18:57:51,399 - BookFormatter - INFO - Índice atualizado: Apoio Matricial na Atenção Primária à Saúde com 5 subtópicos
-2026-04-16 18:57:51,400 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_185751.json
-2026-04-16 18:57:51,401 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-16 18:57:51,404 - BookFormatter - INFO - Índice processado: Apoio Matricial na Atenção Primária à Saúde
-2026-04-16 18:57:51,405 - BookFormatter - INFO - Gerando DOCX: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 18:57:51,406 - BookFormatter - INFO - Gerando DOCX formatado para: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 18:57:51,554 - BookFormatter - INFO - Documento DOCX salvo: Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
-2026-04-16 18:57:51,555 - BookFormatter - INFO - DOCX gerado: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
-2026-04-16 18:57:51,556 - BookFormatter - INFO - Convertendo para PDF: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 18:57:51,557 - BookFormatter - INFO - Convertendo para PDF: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
-2026-04-16 18:57:58,444 - BookFormatter - INFO - PDF gerado com sucesso: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.pdf
-2026-04-16 18:57:58,444 - BookFormatter - INFO - PDF gerado com sucesso
-2026-04-16 18:57:58,446 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_185758.json
-2026-04-16 18:57:58,447 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-16 18:57:58,464 - BookFormatter - INFO - Processamento concluído: 1 sucesso(s), 0 erro(s)
-2026-04-16 19:05:47,577 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_190547.json
-2026-04-16 19:05:47,582 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-16 19:05:52,447 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_190552.json
-2026-04-16 19:05:52,448 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-16 19:05:55,038 - BookFormatter - WARNING - Tentativa de processar sem API key
-2026-04-16 19:05:59,496 - BookFormatter - INFO - Iniciando processamento de 1 arquivo(s)
-2026-04-16 19:05:59,498 - BookFormatter - INFO - Processando arquivo: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 19:05:59,500 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_190559.json
-2026-04-16 19:05:59,501 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-16 19:05:59,504 - BookFormatter - INFO - Extraindo texto de: temp\Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 19:05:59,532 - BookFormatter - INFO - Resumos anteriores agregados: 0 capítulo(s)
-2026-04-16 19:05:59,534 - BookFormatter - INFO - Enviando para IA: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 19:05:59,534 - BookFormatter - INFO - Verificando cache para este capítulo...
-2026-04-16 19:06:00,504 - BookFormatter - INFO - ============================================================
-2026-04-16 19:06:00,504 - BookFormatter - INFO - Iniciando processamento de capítulo com IA
-2026-04-16 19:06:00,505 - BookFormatter - INFO - ============================================================
-2026-04-16 19:06:00,505 - BookFormatter - INFO - Tentando modelo: gemini-2.5-pro
-2026-04-16 19:06:00,848 - BookFormatter - WARNING - Modelo gemini-2.5-pro sem cota (Limit: 0). Pulando...
-2026-04-16 19:06:00,849 - BookFormatter - INFO - Tentando modelo: gemini-2.5-flash
-2026-04-16 19:06:49,479 - BookFormatter - INFO - ============================================================
-2026-04-16 19:06:49,479 - BookFormatter - INFO - Índice atualizado: Apoio Matricial na Atenção Primária à Saúde com 5 subtópicos
-2026-04-16 19:06:49,481 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_190649.json
-2026-04-16 19:06:49,482 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-16 19:06:49,483 - BookFormatter - INFO - Índice processado: Apoio Matricial na Atenção Primária à Saúde
-2026-04-16 19:06:49,485 - BookFormatter - INFO - Gerando DOCX: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 19:06:49,486 - BookFormatter - INFO - Gerando DOCX formatado para: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 19:06:49,608 - BookFormatter - INFO - Documento DOCX salvo: Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
-2026-04-16 19:06:49,610 - BookFormatter - INFO - DOCX gerado: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
-2026-04-16 19:06:49,611 - BookFormatter - INFO - Convertendo para PDF: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 19:06:49,611 - BookFormatter - INFO - Convertendo para PDF: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
-2026-04-16 19:06:55,409 - BookFormatter - INFO - PDF gerado com sucesso: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.pdf
-2026-04-16 19:06:55,409 - BookFormatter - INFO - PDF gerado com sucesso
-2026-04-16 19:06:55,411 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_190655.json
-2026-04-16 19:06:55,412 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-16 19:06:55,431 - BookFormatter - INFO - Processamento concluído: 1 sucesso(s), 0 erro(s)
-2026-04-16 19:12:25,151 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_191225.json
-2026-04-16 19:12:25,152 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-16 19:12:33,085 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_191233.json
-2026-04-16 19:12:33,086 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-16 19:12:34,526 - BookFormatter - INFO - Iniciando processamento de 1 arquivo(s)
-2026-04-16 19:12:34,529 - BookFormatter - INFO - Processando arquivo: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 19:12:34,531 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_191234.json
-2026-04-16 19:12:34,532 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-16 19:12:34,538 - BookFormatter - INFO - Extraindo texto de: temp\Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 19:12:34,563 - BookFormatter - INFO - Resumos anteriores agregados: 0 capítulo(s)
-2026-04-16 19:12:34,564 - BookFormatter - INFO - Enviando para IA: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 19:12:34,564 - BookFormatter - INFO - Verificando cache para este capítulo...
-2026-04-16 19:12:35,523 - BookFormatter - INFO - ============================================================
-2026-04-16 19:12:35,523 - BookFormatter - INFO - Iniciando processamento de capítulo com IA
-2026-04-16 19:12:35,523 - BookFormatter - INFO - ============================================================
-2026-04-16 19:12:35,523 - BookFormatter - INFO - Tentando modelo: gemini-2.5-pro
-2026-04-16 19:12:35,855 - BookFormatter - WARNING - Modelo gemini-2.5-pro sem cota (Limit: 0). Pulando...
-2026-04-16 19:12:35,856 - BookFormatter - INFO - Tentando modelo: gemini-2.5-flash
-2026-04-16 19:13:09,283 - BookFormatter - INFO - ============================================================
-2026-04-16 19:13:09,284 - BookFormatter - INFO - Índice atualizado: Apoio Matricial na Atenção Primária à Saúde com 5 subtópicos
-2026-04-16 19:13:09,285 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_191309.json
-2026-04-16 19:13:09,286 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-16 19:13:09,288 - BookFormatter - INFO - Índice processado: Apoio Matricial na Atenção Primária à Saúde
-2026-04-16 19:13:09,290 - BookFormatter - INFO - Gerando DOCX: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 19:13:09,291 - BookFormatter - INFO - Gerando DOCX formatado para: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 19:13:09,431 - BookFormatter - INFO - Documento DOCX salvo: Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
-2026-04-16 19:13:09,433 - BookFormatter - INFO - DOCX gerado: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
-2026-04-16 19:13:09,434 - BookFormatter - INFO - Convertendo para PDF: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 19:13:09,434 - BookFormatter - INFO - Convertendo para PDF: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
-2026-04-16 19:13:15,181 - BookFormatter - INFO - PDF gerado com sucesso: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.pdf
-2026-04-16 19:13:15,181 - BookFormatter - INFO - PDF gerado com sucesso
-2026-04-16 19:13:15,183 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_191315.json
-2026-04-16 19:13:15,184 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-16 19:13:15,202 - BookFormatter - INFO - Processamento concluído: 1 sucesso(s), 0 erro(s)
-2026-04-16 19:20:55,533 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_192055.json
-2026-04-16 19:20:55,540 - BookFormatter - INFO - Limpeza de backups: 11 arquivo(s) removido(s)
-2026-04-16 19:20:59,796 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_192059.json
-2026-04-16 19:20:59,797 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-16 19:21:03,420 - BookFormatter - INFO - Iniciando processamento de 1 arquivo(s)
-2026-04-16 19:21:03,422 - BookFormatter - INFO - Processando arquivo: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 19:21:03,424 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_192103.json
-2026-04-16 19:21:03,425 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-16 19:21:03,428 - BookFormatter - INFO - Extraindo texto de: temp\Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 19:21:03,453 - BookFormatter - INFO - Resumos anteriores agregados: 0 capítulo(s)
-2026-04-16 19:21:03,454 - BookFormatter - INFO - Enviando para IA: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 19:21:03,454 - BookFormatter - INFO - Verificando cache para este capítulo...
-2026-04-16 19:21:03,963 - BookFormatter - INFO - ============================================================
-2026-04-16 19:21:03,963 - BookFormatter - INFO - Iniciando processamento de capítulo com IA
-2026-04-16 19:21:03,963 - BookFormatter - INFO - ============================================================
-2026-04-16 19:21:03,963 - BookFormatter - INFO - Tentando modelo: gemini-2.5-pro
-2026-04-16 19:21:04,299 - BookFormatter - WARNING - Modelo gemini-2.5-pro sem cota (Limit: 0). Pulando...
-2026-04-16 19:21:04,299 - BookFormatter - INFO - Tentando modelo: gemini-2.5-flash
-2026-04-16 19:21:55,645 - BookFormatter - INFO - ============================================================
-2026-04-16 19:21:55,645 - BookFormatter - INFO - Índice atualizado: Apoio Matricial na Atenção Primária à Saúde com 4 subtópicos
-2026-04-16 19:21:55,647 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_192155.json
-2026-04-16 19:21:55,648 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-16 19:21:55,649 - BookFormatter - INFO - Índice processado: Apoio Matricial na Atenção Primária à Saúde
-2026-04-16 19:21:55,652 - BookFormatter - INFO - Gerando DOCX: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 19:21:55,652 - BookFormatter - INFO - Gerando DOCX formatado para: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 19:21:55,833 - BookFormatter - INFO - Documento DOCX salvo: Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
-2026-04-16 19:21:55,835 - BookFormatter - INFO - DOCX gerado: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
-2026-04-16 19:21:55,836 - BookFormatter - INFO - Convertendo para PDF: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-16 19:21:55,836 - BookFormatter - INFO - Convertendo para PDF: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
-2026-04-16 19:22:02,678 - BookFormatter - INFO - PDF gerado com sucesso: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.pdf
-2026-04-16 19:22:02,678 - BookFormatter - INFO - PDF gerado com sucesso
-2026-04-16 19:22:02,679 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-16_192202.json
-2026-04-16 19:22:02,680 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-16 19:22:02,695 - BookFormatter - INFO - Processamento concluído: 1 sucesso(s), 0 erro(s)
+2026-04-18 13:36:48,995 - BookFormatter - DEBUG - Carregando progresso...
+2026-04-18 13:36:48,997 - BookFormatter - DEBUG - Arquivo de progresso validado
+2026-04-18 13:36:49,061 - BookFormatter - DEBUG - Gerenciador de índice inicializado
+2026-04-18 13:36:51,253 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-18_133651.json
+2026-04-18 13:36:51,254 - BookFormatter - DEBUG - Backup antigo removido: progresso_2026-04-18_133122.json
+2026-04-18 13:36:51,255 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
+2026-04-18 13:36:51,256 - BookFormatter - DEBUG - Progresso salvo com sucesso
+2026-04-18 13:36:58,044 - BookFormatter - DEBUG - Status atualizado para Apoio Matricial na Atenção Primária à Saúde.docx: Pendente
+2026-04-18 13:36:58,046 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-18_133658.json
+2026-04-18 13:36:58,048 - BookFormatter - DEBUG - Backup antigo removido: progresso_2026-04-18_133130.json
+2026-04-18 13:36:58,048 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
+2026-04-18 13:36:58,049 - BookFormatter - DEBUG - Progresso salvo com sucesso
+2026-04-18 13:36:59,014 - BookFormatter - INFO - Iniciando processamento de 1 arquivo(s)
+2026-04-18 13:36:59,016 - BookFormatter - INFO - Processando arquivo: Apoio Matricial na Atenção Primária à Saúde.docx
+2026-04-18 13:36:59,016 - BookFormatter - DEBUG - Status atualizado para Apoio Matricial na Atenção Primária à Saúde.docx: Em Processamento
+2026-04-18 13:36:59,021 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-18_133659.json
+2026-04-18 13:36:59,023 - BookFormatter - DEBUG - Backup antigo removido: progresso_2026-04-18_133134.json
+2026-04-18 13:36:59,023 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
+2026-04-18 13:36:59,024 - BookFormatter - DEBUG - Progresso salvo com sucesso
+2026-04-18 13:36:59,026 - BookFormatter - DEBUG - Arquivo salvo temporariamente: temp\Apoio Matricial na Atenção Primária à Saúde.docx
+2026-04-18 13:36:59,026 - BookFormatter - INFO - Extraindo texto de: temp\Apoio Matricial na Atenção Primária à Saúde.docx
+2026-04-18 13:36:59,051 - BookFormatter - DEBUG - Texto extraído com sucesso (15389 caracteres)
+2026-04-18 13:36:59,052 - BookFormatter - DEBUG - Lendo resumos anteriores de: progresso.json
+2026-04-18 13:36:59,054 - BookFormatter - INFO - Resumos anteriores agregados: 0 capítulo(s)
+2026-04-18 13:36:59,054 - BookFormatter - INFO - Enviando para IA: Apoio Matricial na Atenção Primária à Saúde.docx
+2026-04-18 13:36:59,055 - BookFormatter - INFO - Verificando cache para este capítulo...
+2026-04-18 13:36:59,055 - BookFormatter - DEBUG - Cache miss para 4fc06353288800e262b2e95fed129b14_gemini-default
+2026-04-18 13:36:59,055 - BookFormatter - DEBUG - Mapeando modelos disponíveis na API...
+2026-04-18 13:37:00,078 - BookFormatter - DEBUG - Modelos disponíveis: 36
+2026-04-18 13:37:00,078 - BookFormatter - DEBUG - Modelo disponível: gemini-2.5-pro
+2026-04-18 13:37:00,078 - BookFormatter - DEBUG - Modelo disponível: gemini-2.5-flash
+2026-04-18 13:37:00,078 - BookFormatter - DEBUG - Modelo disponível: gemini-pro-latest
+2026-04-18 13:37:00,078 - BookFormatter - DEBUG - Modelo disponível: gemini-flash-latest
+2026-04-18 13:37:00,078 - BookFormatter - DEBUG - Modelo disponível: gemini-2.0-flash
+2026-04-18 13:37:00,079 - BookFormatter - INFO - ============================================================
+2026-04-18 13:37:00,079 - BookFormatter - INFO - Iniciando processamento de capítulo com IA
+2026-04-18 13:37:00,079 - BookFormatter - INFO - ============================================================
+2026-04-18 13:37:00,079 - BookFormatter - INFO - Tentando modelo: gemini-2.5-pro
+2026-04-18 13:37:00,079 - BookFormatter - DEBUG - Tentativa 1/2
+2026-04-18 13:37:00,428 - BookFormatter - WARNING - Modelo gemini-2.5-pro sem cota (Limit: 0). Pulando...
+2026-04-18 13:37:00,429 - BookFormatter - INFO - Tentando modelo: gemini-2.5-flash
+2026-04-18 13:37:00,429 - BookFormatter - DEBUG - Tentativa 1/2
+2026-04-18 13:37:54,733 - BookFormatter - DEBUG - [Refs DEBUG] Iniciando normalização de 'Apoio Matricial na Atenção Primária à Saúde.docx'
+2026-04-18 13:37:54,733 - BookFormatter - DEBUG - [Refs DEBUG] Tamanho total do texto: 17164 caracteres
+2026-04-18 13:37:54,734 - BookFormatter - DEBUG - [Refs DEBUG] Corpo do texto: 13072 caracteres
+2026-04-18 13:37:54,734 - BookFormatter - DEBUG - [Refs DEBUG] Seção de referências: 4091 caracteres
+2026-04-18 13:37:54,734 - BookFormatter - DEBUG - [Refs DEBUG] Primeiros 300 chars do corpo:
+Apoio Matricial na Atenção Primária à Saúde
+
+[BOX_RESUMO]
+PONTOS IMPORTANTES
+*   O Apoio Matricial é uma estratégia fundamental para a integralidade do cuidado na Atenção Primária à Saúde (APS), integrando equipes de Saúde da Família (eSF) e Núcleos de Apoio à Saúde da Família (NASF).
+*   Sua atuaçã
+
+2026-04-18 13:37:54,734 - BookFormatter - DEBUG - [Refs DEBUG] Token '1' em posição 972
+2026-04-18 13:37:54,734 - BookFormatter - DEBUG - [Refs DEBUG]   Contexto: ...iva culturalmente sensível.
+
+H1 Introdução
+
+O Apoio Matricial...
+2026-04-18 13:37:54,741 - BookFormatter - DEBUG - [Refs DEBUG] Token '²' em posição 1502
+2026-04-18 13:37:54,742 - BookFormatter - DEBUG - [Refs DEBUG]   Contexto: ...rdagens no cuidado ao paciente².
+
+H1 Conceituação do Apoio Ma...
+2026-04-18 13:37:54,762 - BookFormatter - DEBUG - [Refs DEBUG] Token '6' em posição 2534
+2026-04-18 13:37:54,762 - BookFormatter - DEBUG - [Refs DEBUG]   Contexto: ...uidados de saúde na comunidade6.
+
+Por intermédio do matriciam...
+2026-04-18 13:37:54,768 - BookFormatter - DEBUG - [Refs DEBUG] Token '³' em posição 3642
+2026-04-18 13:37:54,768 - BookFormatter - DEBUG - [Refs DEBUG]   Contexto: ...s nos serviços de saúde locais³,4.
+
+Em síntese, o Apoio Matri...
+2026-04-18 13:37:54,781 - BookFormatter - DEBUG - [Refs DEBUG] Token '11' em posição 4785
+2026-04-18 13:37:54,781 - BookFormatter - DEBUG - [Refs DEBUG]   Contexto: ...ndições de saúde da comunidade11.
+
+Na prática, o Apoio Matrici...
+2026-04-18 13:37:54,789 - BookFormatter - DEBUG - [Refs DEBUG] Token '12' em posição 5655
+2026-04-18 13:37:54,789 - BookFormatter - DEBUG - [Refs DEBUG]   Contexto: ...imento acerca do matriciamento12.
+
+[BOX_ATENCAO]
+**Barreiras n...
+2026-04-18 13:37:54,808 - BookFormatter - DEBUG - [Refs DEBUG] Token '13' em posição 7361
+2026-04-18 13:37:54,809 - BookFormatter - DEBUG - [Refs DEBUG]   Contexto: ... a introdução do matriciamento13.
+
+H1 Funcionalidade na Prátic...
+2026-04-18 13:37:54,823 - BookFormatter - DEBUG - [Refs DEBUG] Token '5' em posição 8542
+2026-04-18 13:37:54,823 - BookFormatter - DEBUG - [Refs DEBUG]   Contexto: ...ento e aprimorar suas práticas5.
+
+H1 Potenciais de Organizaçã...
+2026-04-18 13:37:54,832 - BookFormatter - DEBUG - [Refs DEBUG] Token '9' em posição 8739
+2026-04-18 13:37:54,832 - BookFormatter - DEBUG - [Refs DEBUG]   Contexto: ...s, educacionais e comunitários9. Esta integração é crucial pa...
+2026-04-18 13:37:54,836 - BookFormatter - DEBUG - [Refs DEBUG] Token '8' em posição 10300
+2026-04-18 13:37:54,836 - BookFormatter - DEBUG - [Refs DEBUG]   Contexto: ...cessidades da comunidade local8.
+
+Adicionalmente, uma perspec...
+2026-04-18 13:37:54,840 - BookFormatter - DEBUG - [Refs DEBUG] Token '10' em posição 11009
+2026-04-18 13:37:54,840 - BookFormatter - DEBUG - [Refs DEBUG]   Contexto: ...os prestados na Atenção Básica10.
+
+Outrossim, um estudo qualit...
+2026-04-18 13:37:54,844 - BookFormatter - DEBUG - [Refs DEBUG] Token '7' em posição 11457
+2026-04-18 13:37:54,844 - BookFormatter - DEBUG - [Refs DEBUG]   Contexto: ...ia na Atenção Primária à Saúde7.
+
+[BOX_RECOMENDACAO]
+**Incorp...
+2026-04-18 13:37:54,861 - BookFormatter - INFO - [Refs]   Total de tokens: 24
+2026-04-18 13:37:54,861 - BookFormatter - INFO - [Refs]   Citações únicas: 12
+2026-04-18 13:37:54,918 - BookFormatter - INFO - [Refs] Normalização aplicada em 'Apoio Matricial na Atenção Primária à Saúde.docx': 12 referência(s) mapeada(s). Primeira aparição -> Nova numeração.
+2026-04-18 13:37:54,972 - BookFormatter - DEBUG - Cache salvo para 4fc06353288800e262b2e95fed129b14_gemini-2.5-flash
+2026-04-18 13:37:54,976 - BookFormatter - INFO - ============================================================
+2026-04-18 13:37:54,977 - BookFormatter - DEBUG - IA retornou 17161 caracteres
+2026-04-18 13:37:54,977 - BookFormatter - INFO - Índice atualizado: Apoio Matricial na Atenção Primária à Saúde com 5 subtópicos
+2026-04-18 13:37:54,978 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-18_133754.json
+2026-04-18 13:37:54,979 - BookFormatter - DEBUG - Backup antigo removido: progresso_2026-04-18_133220.json
+2026-04-18 13:37:54,980 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
+2026-04-18 13:37:54,982 - BookFormatter - DEBUG - Progresso salvo com sucesso
+2026-04-18 13:37:54,982 - BookFormatter - INFO - Índice processado: Apoio Matricial na Atenção Primária à Saúde
+2026-04-18 13:37:54,983 - BookFormatter - DEBUG - Texto da IA salvo: temp\Apoio Matricial na Atenção Primária à Saúde.docx.ai.txt
+2026-04-18 13:37:54,984 - BookFormatter - INFO - Gerando DOCX: Apoio Matricial na Atenção Primária à Saúde.docx
+2026-04-18 13:37:54,984 - BookFormatter - INFO - Gerando DOCX formatado para: Apoio Matricial na Atenção Primária à Saúde.docx
+2026-04-18 13:37:55,002 - BookFormatter - DEBUG - Configurações de página definidas
+2026-04-18 13:37:55,105 - BookFormatter - INFO - Documento DOCX salvo: Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
+2026-04-18 13:37:55,107 - BookFormatter - INFO - DOCX gerado: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
+2026-04-18 13:37:55,108 - BookFormatter - INFO - Convertendo para PDF: Apoio Matricial na Atenção Primária à Saúde.docx
+2026-04-18 13:37:55,108 - BookFormatter - INFO - Convertendo para PDF: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
+2026-04-18 13:38:01,806 - BookFormatter - INFO - PDF gerado com sucesso: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.pdf
+2026-04-18 13:38:01,806 - BookFormatter - INFO - PDF gerado com sucesso
+2026-04-18 13:38:01,808 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-18_133801.json
+2026-04-18 13:38:01,809 - BookFormatter - DEBUG - Backup antigo removido: progresso_2026-04-18_133227.json
+2026-04-18 13:38:01,809 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
+2026-04-18 13:38:01,810 - BookFormatter - DEBUG - Progresso salvo com sucesso
+2026-04-18 13:38:01,815 - BookFormatter - INFO - Processamento concluído: 1 sucesso(s), 0 erro(s)
+2026-04-18 13:38:45,696 - BookFormatter - DEBUG - Carregando progresso...
+2026-04-18 13:38:45,712 - BookFormatter - DEBUG - Arquivo de progresso validado
+2026-04-18 13:38:45,778 - BookFormatter - DEBUG - Gerenciador de índice inicializado

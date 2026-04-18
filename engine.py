@@ -3,6 +3,7 @@ import google.generativeai as genai
 import json
 import os
 import time
+import re
 from typing import Dict, Any, Optional
 
 # Importa configurações centralizadas
@@ -18,16 +19,211 @@ from exceptions import (
 )
 
 
+SUPERSCRIPT_TO_DIGIT = {
+    '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4',
+    '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9'
+}
+
+DIGIT_TO_SUPERSCRIPT = {
+    '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+    '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹'
+}
+
+# Captura:
+# 1. [números] com separadores
+# 2. Números sobrescritos ¹²³
+# 3. Números normais pegados em palavras: palavra12, palavra6 etc.
+CITATION_TOKEN_RE = re.compile(
+    r'\[(?:\s*\d+(?:\s*[-,;]\s*\d+)*)\]'  # [1], [1, 2], [1-3], etc.
+    r'|[⁰¹²³⁴⁵⁶⁷⁸⁹]+'                      # Sobrescritos ¹²³
+    r'|(?<=[a-záãâàäéèêëíìîïóòôöõúùûüüýÿ][a-záãâàäéèêëíìîïóòôöõúùûüüýÿ])\d+(?=[,.\s\)\]—–-]|$)'  # Números no fim de palavras (evita H1)
+)
+
+
+def _is_reference_heading_line(line: str) -> bool:
+    """Detecta cabeçalhos de seção de referências para limitar a renumeração ao corpo."""
+    clean = line.strip().lower().rstrip(':')
+    return clean in {
+        "referencias",
+        "referências",
+        "bibliografia",
+        "bibliographic references",
+        "references"
+    }
+
+
+def _split_text_before_references(text: str) -> tuple[str, str]:
+    """Divide o texto entre corpo e seção de referências (se existir)."""
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if _is_reference_heading_line(line):
+            return "\n".join(lines[:i]), "\n".join(lines[i:])
+    return text, ""
+
+
+def _decode_superscript_number(token: str) -> Optional[int]:
+    try:
+        return int("".join(SUPERSCRIPT_TO_DIGIT[ch] for ch in token))
+    except Exception:
+        return None
+
+
+def _encode_superscript_number(number: int) -> str:
+    return "".join(DIGIT_TO_SUPERSCRIPT[d] for d in str(number))
+
+
+def _extract_numbers_from_token(token: str) -> list[int]:
+    if token.startswith("[") and token.endswith("]"):
+        return [int(n) for n in re.findall(r'\d+', token)]
+
+    # Captura números ASCII em formato normal (ex.: "modelo12" -> token "12")
+    if re.fullmatch(r'[0-9]+', token):
+        return [int(token)]
+
+    number = _decode_superscript_number(token)
+    if number is None:
+        return []
+    return [number]
+
+
+def _renumber_reference_line_marker(line: str, mapping: Dict[int, int]) -> str:
+    """Renumera apenas o marcador inicial da linha de referência, preservando o restante."""
+    bracket_match = re.match(r'^(\s*)\[(\d+)\](\s+.*)$', line)
+    if bracket_match:
+        prefix, old_number, rest = bracket_match.groups()
+        new_number = mapping.get(int(old_number), int(old_number))
+        return f"{prefix}[{new_number}]{rest}"
+
+    dot_match = re.match(r'^(\s*)(\d+)([\.)])(\s+.*)$', line)
+    if dot_match:
+        prefix, old_number, suffix, rest = dot_match.groups()
+        new_number = mapping.get(int(old_number), int(old_number))
+        return f"{prefix}{new_number}{suffix}{rest}"
+
+    superscript_match = re.match(r'^(\s*)([⁰¹²³⁴⁵⁶⁷⁸⁹]+)(\s+.*)$', line)
+    if superscript_match:
+        prefix, old_sup, rest = superscript_match.groups()
+        old_number = _decode_superscript_number(old_sup)
+        if old_number is None:
+            return line
+        new_number = mapping.get(old_number, old_number)
+        return f"{prefix}{_encode_superscript_number(new_number)}{rest}"
+
+    return line
+
+
+def normalize_citation_order(ai_text: str, chapter_name: str = "") -> str:
+    """
+    Renumera citações para sequência de primeira aparição no corpo do texto.
+
+    Regras:
+    - Mantém formato original de cada citação (colchete ou sobrescrito)
+    - Não altera conteúdo textual das referências bibliográficas
+    - Ajusta apenas o marcador numérico inicial das linhas de referência
+    """
+    if not ai_text or not ai_text.strip():
+        return ai_text
+
+    logger.debug(f"[Refs DEBUG] Iniciando normalização de '{chapter_name or 'capítulo'}'")
+    logger.debug(f"[Refs DEBUG] Tamanho total do texto: {len(ai_text)} caracteres")
+
+    body_text, references_text = _split_text_before_references(ai_text)
+    
+    logger.debug(f"[Refs DEBUG] Corpo do texto: {len(body_text)} caracteres")
+    logger.debug(f"[Refs DEBUG] Seção de referências: {len(references_text)} caracteres")
+    logger.debug(f"[Refs DEBUG] Primeiros 300 chars do corpo:\n{body_text[:300]}\n")
+
+    mapping: Dict[int, int] = {}
+    next_number = 1
+    all_tokens = []
+
+    for match in CITATION_TOKEN_RE.finditer(body_text):
+        token = match.group(0)
+        start_pos = match.start()
+        context_start = max(0, start_pos - 30)
+        context_end = min(len(body_text), start_pos + len(token) + 30)
+        context = body_text[context_start:context_end]
+        
+        all_tokens.append((token, start_pos, context))
+        
+        for old_number in _extract_numbers_from_token(token):
+            if old_number <= 0:
+                continue
+            if old_number not in mapping:
+                mapping[old_number] = next_number
+                logger.debug(f"[Refs DEBUG] Token '{token}' em posição {start_pos}")
+                logger.debug(f"[Refs DEBUG]   Contexto: ...{context}...")
+                logger.debug(f"[Refs DEBUG]   Número {old_number} (primeira aparição) → novo número {next_number}")
+                next_number += 1
+            else:
+                logger.debug(f"[Refs DEBUG] Token '{token}' número {old_number} já mapeado → {mapping[old_number]}")
+
+    if not mapping:
+        logger.warning(f"[Refs] ❌ Nenhuma citação detectada em '{chapter_name or 'capítulo'}'")
+        logger.warning(f"[Refs DEBUG] Total de tokens encontrados pela regex: {len(all_tokens)}")
+        for token, pos, ctx in all_tokens[:15]:
+            logger.debug(f"[Refs DEBUG]   Token '{token}' em posição {pos}: ...{ctx}...")
+        return ai_text
+
+    logger.info(f"[Refs] ✓ CITAÇÕES DETECTADAS:")
+    logger.info(f"[Refs]   Total de tokens: {len(all_tokens)}")
+    logger.info(f"[Refs]   Citações únicas: {len(mapping)}")
+    logger.info(f"[Refs]   Mapeamento (origem → novo):")
+    for old_num in sorted(mapping.keys()):
+        new_num = mapping[old_num]
+        logger.info(f"[Refs]      {old_num} → {new_num}")
+
+    def _replace_token(match: re.Match) -> str:
+        token = match.group(0)
+
+        if token.startswith("[") and token.endswith("]"):
+            # Substitui números dentro de colchetes
+            return re.sub(
+                r'\d+',
+                lambda n: str(mapping.get(int(n.group(0)), int(n.group(0)))),
+                token
+            )
+
+        old_number = _decode_superscript_number(token)
+        if old_number is not None:
+            # É sobrescrito - retorna novo sobrescrito
+            return _encode_superscript_number(mapping.get(old_number, old_number))
+
+        # É número normal pegado em palavra - tenta converter direto
+        try:
+            old_num = int(token)
+            return str(mapping.get(old_num, old_num))
+        except ValueError:
+            return token
+
+    normalized_body = CITATION_TOKEN_RE.sub(_replace_token, body_text)
+
+    normalized_references = references_text
+    if references_text:
+        renumbered_lines = [
+            _renumber_reference_line_marker(line, mapping)
+            for line in references_text.splitlines()
+        ]
+        normalized_references = "\n".join(renumbered_lines)
+
+    normalized_text = normalized_body if not references_text else f"{normalized_body}\n{normalized_references}"
+
+    sorted_preview = sorted(mapping.items(), key=lambda x: x[1])
+    logger.info(
+        f"[Refs] Normalização aplicada em '{chapter_name or 'capítulo'}': "
+        f"{len(mapping)} referência(s) mapeada(s). "
+        f"Primeira aparição -> Nova numeração."
+    )
+    for old_num, new_num in sorted_preview:
+        logger.debug(f"[Refs]   {old_num} → {new_num}")
+
+    return normalized_text
+
+
 def extract_text_from_docx(file_path: str) -> str:
     """
-    Lê um arquivo .docx e retorna o texto completo.
-    
-    Args:
-        file_path: Caminho do arquivo .docx
-        
-    Returns:
-        Texto completo do documento
-        
+    Extrai texto bruto de um arquivo DOCX.
+
     Raises:
         DocumentParseError: Se não conseguir ler o arquivo
     """
@@ -79,7 +275,12 @@ def get_processed_chapters_summary(progress_file: str = PROGRESS_FILE) -> str:
         logger.warning(f"Erro ao ler resumos anteriores: {e}")
         return ""
 
-def process_chapter_text(chapter_text: str, previous_summaries: str, api_key: Optional[str] = None) -> str:
+def process_chapter_text(
+    chapter_text: str,
+    previous_summaries: str,
+    api_key: Optional[str] = None,
+    chapter_name: str = ""
+) -> str:
     """
     Envia o texto para a API do Gemini processar de acordo com o STYLE_GUIDE e instruções.
     
@@ -94,6 +295,7 @@ def process_chapter_text(chapter_text: str, previous_summaries: str, api_key: Op
         chapter_text: Texto bruto do capítulo a processar
         previous_summaries: Resumos de capítulos anteriores para coesão narrativa
         api_key: Chave da API Gemini (configurada na sessão se não fornecida)
+        chapter_name: Nome do capítulo/arquivo para logs de debug
         
     Returns:
         Texto processado pela IA com tags de formatação
@@ -110,7 +312,7 @@ def process_chapter_text(chapter_text: str, previous_summaries: str, api_key: Op
     cached_result = cache_get(chapter_text, "gemini-default")
     if cached_result:
         logger.info("✓ Resultado recuperado do cache")
-        return cached_result
+        return normalize_citation_order(cached_result, chapter_name=chapter_name)
     
     # Mapeia modelos disponíveis na API
     logger.debug("Mapeando modelos disponíveis na API...")
@@ -196,6 +398,7 @@ TEXTO DO CAPÍTULO A SER REVISADO:
                     )
                     
                     result_text = response.text
+                    result_text = normalize_citation_order(result_text, chapter_name=chapter_name)
                     
                     # Salva em cache para uso futuro
                     cache_set(chapter_text, selected_model, result_text)
