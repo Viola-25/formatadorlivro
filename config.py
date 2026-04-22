@@ -55,7 +55,11 @@ CITATION_TAG_RULE = (
     "O texto contém marcadores de referência no formato [TAG_REF_X]. "
     "Você é ESTRITAMENTE PROIBIDO de remover, alterar, duplicar ou reordenar esses marcadores. "
     "Mantenha-os exatamente onde estão nos parágrafos correspondentes, mesmo se você resumir ou aglutinar o texto. "
-    "Não crie uma bibliografia nova e não altere referências bibliográficas; apenas preserve os marcadores recebidos."
+    "Não crie uma bibliografia nova e não altere referências bibliográficas; apenas preserve os marcadores recebidos.\n\n"
+    "*** REGRAS ABSOLUTAS PARA CITAÇÕES E REFERÊNCIAS BIBLIOGRÁFICAS ***\n"
+    "- PROIBIDO ALTERAR NÚMEROS: Você NÃO DEVE, sob nenhuma hipótese, reordenar, renomear ou alterar os números das citações sobrescritas no meio do texto.\n"
+    "- FIDELIDADE À LISTA ORIGINAL: Mantenha a seção de \"REFERÊNCIAS\" no final do texto EXATAMENTE igual à fornecida no documento original, respeitando a mesma ordem numérica. \n"
+    "- PROIBIDO ALUCINAR LINKS: NÃO adicione links externos, sites (como OPAS, Ministério da Saúde, SBMFC) ou novas referências que não constem no texto base enviado. Limite-se estritamente ao material fornecido."
 )
 
 # ========== TAGS DE FORMATAÇÃO ==========

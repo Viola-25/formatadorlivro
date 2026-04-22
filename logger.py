@@ -51,5 +51,33 @@ def setup_logging() -> logging.Logger:
     return logger
 
 
+def reset_log_file() -> None:
+    """Trunca o arquivo de log ativo para reiniciar os registros do próximo capítulo."""
+    target_logger = logging.getLogger("BookFormatter")
+
+    for handler in target_logger.handlers:
+        if not isinstance(handler, logging.FileHandler):
+            continue
+
+        try:
+            handler.acquire()
+            if handler.stream is not None:
+                handler.stream.seek(0)
+                handler.stream.truncate()
+                handler.flush()
+                continue
+
+            # Fallback para handlers sem stream inicializado.
+            with open(LOG_FILE, "w", encoding="utf-8"):
+                pass
+        except Exception as e:
+            print(f"Aviso: Não foi possível reiniciar o arquivo de log: {e}")
+        finally:
+            try:
+                handler.release()
+            except Exception:
+                pass
+
+
 # Logger global
 logger = setup_logging()

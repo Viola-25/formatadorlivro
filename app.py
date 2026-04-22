@@ -11,7 +11,7 @@ from formatter import generate_formatted_docx, convert_to_pdf
 
 # Importando configuração centralizada
 from config import PROGRESS_FILE, OUTPUT_DIR, TEMP_DIR
-from logger import logger
+from logger import logger, reset_log_file
 from backup import create_backup, restore_backup, list_backups, validate_progress_file
 from validator import validate_index_data, InvalidIndexData
 from exceptions import DocumentParseError, APIException
@@ -158,6 +158,8 @@ def process_files(uploaded_files: list, api_key: str) -> None:
     
     for i, file in enumerate(uploaded_files):
         try:
+            reset_log_file()
+            logger.info(f"Log reiniciado para novo capítulo: {file.name}")
             status_text.info(f"**Processando arquivo {i+1} de {total_files}:** `{file.name}`")
             logger.info(f"Processando arquivo: {file.name}")
             

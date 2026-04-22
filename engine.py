@@ -191,63 +191,10 @@ def postprocess_citations_from_llm(
     reference_entries: list[dict[str, Any]],
     chapter_name: str = ""
 ) -> str:
-    """Reconstrói a numeração final das citações e a seção bibliográfica em ordem determinística."""
-    if not ai_text or not ai_text.strip():
-        return ai_text
-
-    body_text, _ = _split_text_before_references(ai_text)
-
-    tag_to_new_number: Dict[int, int] = {}
-
-    def _replace_tag(match: re.Match) -> str:
-        tag_id = int(match.group(1))
-        if tag_id not in tag_to_new_number:
-            tag_to_new_number[tag_id] = len(tag_to_new_number) + 1
-        return _encode_superscript_number(tag_to_new_number[tag_id])
-
-    normalized_body = REFERENCE_TAG_RE.sub(_replace_tag, body_text)
-
-    reference_lookup = {int(entry["tag_id"]): entry for entry in reference_entries if "tag_id" in entry}
-    ordered_tag_ids = [tag_id for tag_id in tag_to_new_number.keys() if tag_id in reference_lookup]
-    remaining_tag_ids = [tag_id for tag_id in reference_lookup.keys() if tag_id not in tag_to_new_number]
-
-    rendered_entries: list[str] = []
-    for tag_id in ordered_tag_ids:
-        entry = reference_lookup[tag_id]
-        new_number = tag_to_new_number[tag_id]
-        rendered = _render_reference_entry(entry, new_number)
-        if rendered:
-            rendered_entries.append(rendered)
-
-    next_number = len(rendered_entries) + 1
-    for tag_id in remaining_tag_ids:
-        entry = reference_lookup[tag_id]
-        rendered = _render_reference_entry(entry, next_number)
-        if rendered:
-            rendered_entries.append(rendered)
-            next_number += 1
-
-    if not rendered_entries:
-        logger.warning(f"[Refs] Nenhuma referência bibliográfica pôde ser reconstruída em '{chapter_name or 'capítulo'}'")
-        return normalized_body.strip()
-
-    normalized_body = normalized_body.rstrip()
-    normalized_references = "\n".join(rendered_entries)
-
-    logger.info(
-        f"[Refs] Pós-processamento aplicado em '{chapter_name or 'capítulo'}': "
-        f"{len(tag_to_new_number)} citação(ões) reordenada(s)."
-    )
-    for tag_id, new_number in sorted(tag_to_new_number.items(), key=lambda item: item[1]):
-        logger.debug(f"[Refs]   TAG_REF_{tag_id} -> {new_number}")
-
-    if "[DADOS_INDICE]" in normalized_body:
-        parts = normalized_body.split("[DADOS_INDICE]", 1)
-        corpo_principal = parts[0].rstrip()
-        json_indice = parts[1].strip()
-        return f"{corpo_principal}\n\nREFERÊNCIAS\n{normalized_references}\n\n[DADOS_INDICE]\n{json_indice}"
-
-    return f"{normalized_body}\n\nREFERÊNCIAS\n{normalized_references}".strip()
+    """Desativado: mantém o texto da IA intacto, sem reordenação/renumeração de referências."""
+    _ = reference_entries
+    _ = chapter_name
+    return ai_text
 
 
 def _format_bracket_citation(token: str, mapping: Dict[int, int]) -> str:
@@ -533,7 +480,7 @@ def process_chapter_text(
     if api_key:
         genai.configure(api_key=api_key)
 
-    tagged_text, reference_entries, _reference_mapping = preprocess_citations_for_llm(
+    tagged_text, _reference_entries, _reference_mapping = preprocess_citations_for_llm(
         chapter_text,
         chapter_name=chapter_name,
     )
@@ -596,8 +543,12 @@ INSTRUÇÕES DE FORMATAÇÃO E ESTRUTURA:
 4. O box [BOX_RESUMO] deve conter apenas 3 a 5 bullet points curtos com as mensagens principais do capítulo. Esta é a única parte do texto que pode ser menor; o restante do capítulo deve manter o tamanho original e todas as informações relevantes.
 5. CITAÇÕES E REFERÊNCIAS: Mantenha rigorosamente a mesma numeração e formato (seja sobrescrito ¹, ², ou colchetes [1]) que vieram no texto original. NÃO tente reordenar, NÃO renumere e NÃO altere a lista bibliográfica no final do documento. Apenas preserve a citação exatamente onde ela estava.
 6. Não insira asteriscos (*), hashtags (#) ou outras marcas de markdown no texto final. O texto deve estar limpo e pronto para formatação.
-7. No final do texto, pesquise e sugira 2 ou 3 links oficiais (ex: Ministério da Saúde, OMS, SBMFC ou outras sociedades médicas reconhecidas) para atualização do tema abordado, e insira-os sob a tag [LINKS_ATUALIZACAO].
-8. Ao final de tudo, adicione a tag [DADOS_INDICE] seguida de um JSON estrito contendo duas chaves: 'titulo_capitulo' (o título definitivo do texto lido) e 'subtopicos' (uma lista de strings com os 3 a 5 principais tópicos abordados no capítulo).
+7. Ao final de tudo, adicione a tag [DADOS_INDICE] seguida de um JSON estrito contendo duas chaves: 'titulo_capitulo' (o título definitivo do texto lido) e 'subtopicos' (uma lista de strings com os 3 a 5 principais tópicos abordados no capítulo).
+
+*** REGRAS ABSOLUTAS PARA CITAÇÕES E REFERÊNCIAS BIBLIOGRÁFICAS ***
+- PROIBIDO ALTERAR NÚMEROS: Você NÃO DEVE, sob nenhuma hipótese, reordenar, renomear ou alterar os números das citações sobrescritas no meio do texto.
+- FIDELIDADE À LISTA ORIGINAL: Mantenha a seção de "REFERÊNCIAS" no final do texto EXATAMENTE igual à fornecida no documento original, respeitando a mesma ordem numérica. 
+- PROIBIDO ALUCINAR LINKS: NÃO adicione links externos, sites (como OPAS, Ministério da Saúde, SBMFC) ou novas referências que não constem no texto base enviado. Limite-se estritamente ao material fornecido.
 
 CONTEXTO DOS CAPÍTULOS ANTERIORES:
 (Utilize este contexto para manter a coesão narrativa, evitar repetições desnecessárias e garantir a continuidade do guia)
@@ -636,11 +587,8 @@ TEXTO DO CAPÍTULO A SER REVISADO:
                     )
                     
                     result_text = response.text
-                    result_text = postprocess_citations_from_llm(
-                        result_text,
-                        reference_entries,
-                        chapter_name=chapter_name,
-                    )
+                    # Pós-processamento de referências desativado para preservar
+                    # integralmente a saída gerada pela IA.
                     
                     # Salva em cache para uso futuro
                     cache_set(cache_input, selected_model, result_text)
