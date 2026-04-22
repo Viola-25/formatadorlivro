@@ -211,7 +211,7 @@ def generate_formatted_docx(ai_text: str, chapter_name: str) -> str:
                 run_title.font.size = Pt(BOX_FONT_SIZE)
                 
                 clean_text = sanitize_text_line(stripped_line.replace("[BOX_RESUMO]", "").strip())
-                if clean_text:
+                if clean_text and clean_text.upper() != "PONTOS IMPORTANTES":
                     if not clean_text.startswith("-"):
                         clean_text = f"- {clean_text}"
                     if resumo_lines < 5:
@@ -272,6 +272,8 @@ def generate_formatted_docx(ai_text: str, chapter_name: str) -> str:
                 if current_box_p:
                     clean_text = sanitize_text_line(stripped_line)
                     if not clean_text:
+                        continue
+                    if clean_text.upper() == "PONTOS IMPORTANTES":
                         continue
                     if not clean_text.startswith("-"):
                         clean_text = f"- {clean_text}"

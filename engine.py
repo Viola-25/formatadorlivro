@@ -4,6 +4,7 @@ import json
 import os
 import time
 import re
+import unicodedata
 from typing import Dict, Any, Optional
 
 # Importa configurações centralizadas
@@ -42,13 +43,21 @@ CITATION_TOKEN_RE = re.compile(
 
 def _is_reference_heading_line(line: str) -> bool:
     """Detecta cabeçalhos de seção de referências para limitar a renumeração ao corpo."""
-    clean = line.strip().lower().rstrip(':')
+    clean = line.strip().lower()
+    clean = re.sub(r'^[\s#>*\-\d\.\)]+', '', clean)
+    clean = re.sub(r'[:\-–—]+\s*$', '', clean)
+    clean = unicodedata.normalize('NFD', clean)
+    clean = ''.join(ch for ch in clean if unicodedata.category(ch) != 'Mn')
+    clean = re.sub(r'\s+', ' ', clean).strip()
+
     return clean in {
         "referencias",
-        "referências",
+        "referencias bibliograficas",
         "bibliografia",
         "bibliographic references",
-        "references"
+        "references",
+        "references list",
+        "bibliography"
     }
 
 
@@ -57,8 +66,20 @@ def _split_text_before_references(text: str) -> tuple[str, str]:
     lines = text.splitlines()
     for i, line in enumerate(lines):
         if _is_reference_heading_line(line):
+            logger.debug(f"[Refs DEBUG] Cabeçalho de referências detectado na linha {i + 1}: {line!r}")
             return "\n".join(lines[:i]), "\n".join(lines[i:])
+
+    logger.debug("[Refs DEBUG] Nenhum cabeçalho de referências detectado; todo o texto será tratado como corpo")
     return text, ""
+
+
+def _format_bracket_citation(token: str, mapping: Dict[int, int]) -> str:
+    """Reescreve citações entre colchetes preservando a ordem dos números mapeados."""
+    mapped_numbers = [mapping.get(number, number) for number in _extract_numbers_from_token(token)]
+    if not mapped_numbers:
+        return token
+
+    return "[" + ", ".join(str(number) for number in mapped_numbers) + "]"
 
 
 def _decode_superscript_number(token: str) -> Optional[int]:
@@ -74,7 +95,23 @@ def _encode_superscript_number(number: int) -> str:
 
 def _extract_numbers_from_token(token: str) -> list[int]:
     if token.startswith("[") and token.endswith("]"):
-        return [int(n) for n in re.findall(r'\d+', token)]
+        numbers: list[int] = []
+        content = token[1:-1]
+        for part in re.split(r'\s*[;,]\s*', content):
+            if not part:
+                continue
+
+            range_match = re.fullmatch(r'(\d+)\s*[-–—]\s*(\d+)', part)
+            if range_match:
+                start_number = int(range_match.group(1))
+                end_number = int(range_match.group(2))
+                step = 1 if end_number >= start_number else -1
+                numbers.extend(list(range(start_number, end_number + step, step)))
+                continue
+
+            numbers.extend(int(n) for n in re.findall(r'\d+', part))
+
+        return numbers
 
     # Captura números ASCII em formato normal (ex.: "modelo12" -> token "12")
     if re.fullmatch(r'[0-9]+', token):
@@ -94,7 +131,7 @@ def _renumber_reference_line_marker(line: str, mapping: Dict[int, int]) -> str:
         new_number = mapping.get(int(old_number), int(old_number))
         return f"{prefix}[{new_number}]{rest}"
 
-    dot_match = re.match(r'^(\s*)(\d+)([\.)])(\s+.*)$', line)
+    dot_match = re.match(r'^(\s*)(\d+)([\.)\-:]?)(\s+.*)$', line)
     if dot_match:
         prefix, old_number, suffix, rest = dot_match.groups()
         new_number = mapping.get(int(old_number), int(old_number))
@@ -108,6 +145,12 @@ def _renumber_reference_line_marker(line: str, mapping: Dict[int, int]) -> str:
             return line
         new_number = mapping.get(old_number, old_number)
         return f"{prefix}{_encode_superscript_number(new_number)}{rest}"
+
+    compact_number_match = re.match(r'^(\s*)(\d+)(\S.*)$', line)
+    if compact_number_match:
+        prefix, old_number, rest = compact_number_match.groups()
+        new_number = mapping.get(int(old_number), int(old_number))
+        return f"{prefix}{new_number}{rest}"
 
     return line
 
@@ -165,24 +208,25 @@ def normalize_citation_order(ai_text: str, chapter_name: str = "") -> str:
             logger.debug(f"[Refs DEBUG]   Token '{token}' em posição {pos}: ...{ctx}...")
         return ai_text
 
-    logger.info(f"[Refs] ✓ CITAÇÕES DETECTADAS:")
+    logger.info(f"[Refs] CITAÇÕES DETECTADAS:")
     logger.info(f"[Refs]   Total de tokens: {len(all_tokens)}")
     logger.info(f"[Refs]   Citações únicas: {len(mapping)}")
-    logger.info(f"[Refs]   Mapeamento (origem → novo):")
+    logger.info(f"[Refs]   Mapeamento (origem -> novo):")
     for old_num in sorted(mapping.keys()):
         new_num = mapping[old_num]
-        logger.info(f"[Refs]      {old_num} → {new_num}")
+        logger.info(f"[Refs]      {old_num} -> {new_num}")
+
+    if references_text:
+        logger.debug(
+            "[Refs DEBUG] Primeiras 5 linhas da seção de referências antes da renumeração:\n"
+            + "\n".join(references_text.splitlines()[:5])
+        )
 
     def _replace_token(match: re.Match) -> str:
         token = match.group(0)
 
         if token.startswith("[") and token.endswith("]"):
-            # Substitui números dentro de colchetes
-            return re.sub(
-                r'\d+',
-                lambda n: str(mapping.get(int(n.group(0)), int(n.group(0)))),
-                token
-            )
+            return _format_bracket_citation(token, mapping)
 
         old_number = _decode_superscript_number(token)
         if old_number is not None:

@@ -1,18 +1,4 @@
 {
-    "status_capitulos": {
-        "Apoio Matricial na Atenção Primária à Saúde.docx": {
-            "status": "Concluído",
-            "resumo": "Capítulo revisado e formatado com sucesso.",
-            "titulo_indice": "Apoio Matricial na Atenção Primária à Saúde"
-        }
-    },
-    "indice_capitulos": {
-        "Apoio Matricial na Atenção Primária à Saúde": [
-            "Conceituação e Dimensões do Apoio Matricial",
-            "Implementação e Desafios do Matriciamento",
-            "Funcionalidade Prática do Apoio Matricial",
-            "Potenciais de Expansão e Organização Futura",
-            "A Importância da Competência Cultural no Matriciamento"
-        ]
-    }
+    "status_capitulos": {},
+    "indice_capitulos": {}
 }

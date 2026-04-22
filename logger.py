@@ -4,6 +4,7 @@ Configuração de logging estruturado para a plataforma.
 
 import logging
 import logging.handlers
+import sys
 from config import LOG_LEVEL, LOG_FORMAT, LOG_FILE
 
 
@@ -26,7 +27,8 @@ def setup_logging() -> logging.Logger:
         file_handler = logging.handlers.RotatingFileHandler(
             LOG_FILE,
             maxBytes=5 * 1024 * 1024,  # 5 MB
-            backupCount=3
+            backupCount=3,
+            encoding="utf-8"
         )
         file_handler.setLevel(LOG_LEVEL)
         file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
@@ -34,6 +36,12 @@ def setup_logging() -> logging.Logger:
     except Exception as e:
         print(f"Aviso: Não foi possível configurar logging em arquivo: {e}")
     
+    if hasattr(sys.stderr, "reconfigure"):
+        try:
+            sys.stderr.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
+
     # Handler para console (apenas WARNING e acima)
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.WARNING)
