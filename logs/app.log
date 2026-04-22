@@ -1,3 +1,5 @@
 2026-04-22 18:07:25,553 - BookFormatter - INFO - [Refs] Pós-processamento aplicado em 'teste': 2 citação(ões) reordenada(s).
 2026-04-22 18:07:48,102 - BookFormatter - INFO - [Refs] Pós-processamento aplicado em 'teste': 2 citação(ões) reordenada(s).
 2026-04-22 18:08:08,358 - BookFormatter - INFO - [Refs] Pós-processamento aplicado em 'teste': 2 citação(ões) reordenada(s).
+2026-04-22 18:09:49,136 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-22_180949.json
+2026-04-22 18:09:49,137 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
