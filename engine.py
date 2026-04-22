@@ -241,6 +241,12 @@ def postprocess_citations_from_llm(
     for tag_id, new_number in sorted(tag_to_new_number.items(), key=lambda item: item[1]):
         logger.debug(f"[Refs]   TAG_REF_{tag_id} -> {new_number}")
 
+    if "[DADOS_INDICE]" in normalized_body:
+        parts = normalized_body.split("[DADOS_INDICE]", 1)
+        corpo_principal = parts[0].rstrip()
+        json_indice = parts[1].strip()
+        return f"{corpo_principal}\n\nREFERÊNCIAS\n{normalized_references}\n\n[DADOS_INDICE]\n{json_indice}"
+
     return f"{normalized_body}\n\nREFERÊNCIAS\n{normalized_references}".strip()
 
 
