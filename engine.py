@@ -1,16 +1,18 @@
 import docx
-import google.generativeai as genai
 import json
 import os
 import time
 import re
+import hashlib
 import unicodedata
 from collections import Counter
 from typing import Dict, Any, Optional
+from groq import Groq
 
 # Importa configurações centralizadas
 from config import (
     STYLE_GUIDE, SYSTEM_INSTRUCTION, PREFERRED_MODELS, FALLBACK_MODEL,
+    AI_PROVIDER,
     CITATION_TAG_RULE, AI_TEMPERATURE, AI_MAX_RETRIES, AI_RETRY_DELAY, PROGRESS_FILE
 )
 from logger import logger
@@ -206,6 +208,9 @@ def tokenize_citations_for_llm(body_text: str, chapter_name: str = "") -> tuple[
         f"[Refs DEBUG] Tokenização de citações em '{chapter_name or 'capítulo'}': "
         f"{len(placeholder_to_token)} marcador(es) [TAG_CIT_X]"
     )
+    if placeholder_to_token:
+        preview = list(placeholder_to_token.items())[:5]
+        logger.debug(f"[Refs DEBUG] Preview placeholders (até 5): {preview}")
     return tagged_body, placeholder_to_token
 
 
@@ -249,6 +254,7 @@ def append_manual_references(ai_body_text: str, manual_references_text: str) -> 
     """Anexa a seção REFERÊNCIAS (colada pelo usuário) ao texto final, sem alterar citações."""
     normalized_references = _normalize_manual_references_text(manual_references_text)
     if not normalized_references:
+        logger.debug("[Refs DEBUG] Nenhuma referência manual recebida; corpo mantido sem seção REFERÊNCIAS")
         return ai_body_text.strip()
 
     clean_body = ai_body_text.strip()
@@ -256,8 +262,10 @@ def append_manual_references(ai_body_text: str, manual_references_text: str) -> 
         parts = clean_body.split("[DADOS_INDICE]", 1)
         body_main = parts[0].rstrip()
         index_json = parts[1].strip()
+        logger.debug("[Refs DEBUG] Referências manuais anexadas antes de [DADOS_INDICE]")
         return f"{body_main}\n\nREFERÊNCIAS\n{normalized_references}\n\n[DADOS_INDICE]\n{index_json}".strip()
 
+    logger.debug("[Refs DEBUG] Referências manuais anexadas ao final do capítulo")
     return f"{clean_body}\n\nREFERÊNCIAS\n{normalized_references}".strip()
 
 
@@ -265,9 +273,48 @@ def _extract_placeholder_multiset(text: str) -> Counter:
     return Counter(CITATION_PLACEHOLDER_RE.findall(text or ""))
 
 
+def _extract_placeholder_sequence(text: str) -> list[str]:
+    return CITATION_PLACEHOLDER_RE.findall(text or "")
+
+
+def _placeholder_signature(text: str) -> str:
+    sequence = _extract_placeholder_sequence(text)
+    payload = "|".join(sequence)
+    return hashlib.sha1(payload.encode("utf-8")).hexdigest()[:12] if sequence else "none"
+
+
+def _extract_citation_token_sequence(text: str) -> list[str]:
+    return [m.group(0) for m in BODY_CITATION_TOKEN_RE.finditer(text or "")]
+
+
+def _citation_signature(text: str) -> str:
+    sequence = _extract_citation_token_sequence(text)
+    payload = "|".join(sequence)
+    return hashlib.sha1(payload.encode("utf-8")).hexdigest()[:12] if sequence else "none"
+
+
 def _placeholders_preserved(source_text: str, candidate_text: str) -> bool:
-    """Valida se todos os placeholders de citação foram preservados sem perda/duplicação."""
-    return _extract_placeholder_multiset(source_text) == _extract_placeholder_multiset(candidate_text)
+    """Valida placeholders preservando contagem E ordem de aparição."""
+    source_sequence = _extract_placeholder_sequence(source_text)
+    candidate_sequence = _extract_placeholder_sequence(candidate_text)
+    return source_sequence == candidate_sequence
+
+
+def _summarize_placeholder_diff(source_text: str, candidate_text: str) -> str:
+    """Resume diferenças entre placeholders esperados e recebidos para debug."""
+    source_counts = _extract_placeholder_multiset(source_text)
+    candidate_counts = _extract_placeholder_multiset(candidate_text)
+
+    missing = source_counts - candidate_counts
+    unexpected = candidate_counts - source_counts
+    sequence_matches = _extract_placeholder_sequence(source_text) == _extract_placeholder_sequence(candidate_text)
+
+    missing_items = sorted(missing.items())[:10]
+    unexpected_items = sorted(unexpected.items())[:10]
+    return (
+        f"esperados={sum(source_counts.values())}, recebidos={sum(candidate_counts.values())}, "
+        f"faltando={missing_items}, extras={unexpected_items}, ordem_igual={sequence_matches}"
+    )
 
 
 def _build_chapter_prompt(tagged_text: str, previous_summaries: str) -> str:
@@ -339,40 +386,86 @@ PARÁGRAFO:
 """
 
 
+def _generate_with_groq(
+    client: Groq,
+    model_name: str,
+    system_instruction: str,
+    prompt: str,
+    temperature: float,
+) -> str:
+    """Executa uma geração de texto usando a API Chat Completions do Groq."""
+    response = client.chat.completions.create(
+        model=model_name,
+        temperature=temperature,
+        messages=[
+            {"role": "system", "content": system_instruction},
+            {"role": "user", "content": prompt},
+        ],
+    )
+
+    if not response.choices:
+        return ""
+
+    content = response.choices[0].message.content
+    return content or ""
+
+
 def _rewrite_by_paragraphs(
-    model: genai.GenerativeModel,
+    client: Groq,
+    model_name: str,
+    system_instruction: str,
     tagged_text: str,
     previous_summaries: str,
     chapter_name: str,
-) -> str:
+) -> tuple[str, dict[str, int]]:
     """Processa o capítulo por parágrafos para reduzir risco de perda de citações."""
     paragraphs = [p for p in tagged_text.split("\n\n")]
     rewritten_paragraphs: list[str] = []
+    stats = {
+        "total": len(paragraphs),
+        "empty": 0,
+        "fallback": 0,
+        "rewritten": 0,
+    }
+
+    logger.debug(
+        f"[Pipeline DEBUG] '{chapter_name or 'capítulo'}' em modo estrito por parágrafos: "
+        f"{len(paragraphs)} bloco(s)"
+    )
 
     for idx, paragraph in enumerate(paragraphs, start=1):
         if not paragraph.strip():
             rewritten_paragraphs.append(paragraph)
+            stats["empty"] += 1
             continue
 
         paragraph_prompt = _build_paragraph_prompt(paragraph, previous_summaries)
-        response = model.generate_content(
+        candidate = _generate_with_groq(
+            client,
+            model_name,
+            system_instruction,
             paragraph_prompt,
-            generation_config=genai.GenerationConfig(temperature=AI_TEMPERATURE)
-        )
-        candidate = (response.text or "").strip()
+            AI_TEMPERATURE,
+        ).strip()
 
         if not _placeholders_preserved(paragraph, candidate):
             logger.warning(
                 f"[Refs] Placeholders alterados no parágrafo {idx} de '{chapter_name or 'capítulo'}'. "
                 "Aplicando fallback para preservar citação."
             )
+            logger.debug(
+                f"[Refs DEBUG] Diferença de placeholders no parágrafo {idx}: "
+                f"{_summarize_placeholder_diff(paragraph, candidate)}"
+            )
             rewritten_paragraphs.append(paragraph)
+            stats["fallback"] += 1
             continue
 
         rewritten_paragraphs.append(candidate)
+        stats["rewritten"] += 1
 
     merged = "\n\n".join(rewritten_paragraphs).strip()
-    return merged
+    return merged, stats
 
 
 def postprocess_citations_from_llm(
@@ -644,9 +737,10 @@ def process_chapter_text(
     chapter_name: str = "",
     manual_references_text: str = "",
     strict_paragraph_mode: bool = False,
+    strict_citation_lock: bool = False,
 ) -> str:
     """
-    Envia o texto para a API do Gemini processar de acordo com o STYLE_GUIDE e instruções.
+    Envia o texto para a API do Groq processar de acordo com o STYLE_GUIDE e instruções.
     
     Implementa:
     - Cache para evitar reprocessamento de documentos idênticos
@@ -658,7 +752,7 @@ def process_chapter_text(
     Args:
         chapter_text: Texto bruto do capítulo a processar
         previous_summaries: Resumos de capítulos anteriores para coesão narrativa
-        api_key: Chave da API Gemini (configurada na sessão se não fornecida)
+        api_key: Chave da API Groq (configurada na sessão se não fornecida)
         chapter_name: Nome do capítulo/arquivo para logs de debug
         
     Returns:
@@ -668,10 +762,20 @@ def process_chapter_text(
         APIException: Se não conseguir processar com nenhum modelo disponível
         ModelNotAvailable: Se nenhum modelo estiver disponível
     """
-    if api_key:
-        genai.configure(api_key=api_key)
+    if not api_key:
+        raise APIException("Chave da API Groq não informada")
+
+    client = Groq(api_key=api_key)
+
+    logger.info(
+        f"[Pipeline] Início do capítulo '{chapter_name or 'capítulo'}' "
+        f"(modo={'PARÁGRAFOS' if strict_paragraph_mode else 'CAPÍTULO'}, "
+        f"bloqueio_citacoes={'ON' if strict_citation_lock else 'OFF'})"
+    )
 
     chapter_body_text, _original_references = _split_text_before_references(chapter_text)
+    source_citation_sig = _citation_signature(chapter_body_text)
+    source_citation_count = len(_extract_citation_token_sequence(chapter_body_text))
     tagged_text, placeholder_to_token = tokenize_citations_for_llm(
         chapter_body_text,
         chapter_name=chapter_name,
@@ -683,30 +787,22 @@ def process_chapter_text(
         f"BODY:\n{tagged_text}\n"
         f"MANUAL_REFS:\n{normalized_manual_references}"
     )
+    cache_fingerprint = hashlib.md5(cache_input.encode("utf-8")).hexdigest()[:12]
+    logger.debug(
+        f"[Pipeline DEBUG] Entrada capítulo='{chapter_name or 'capítulo'}': "
+        f"corpo_chars={len(chapter_body_text)}, placeholders={len(placeholder_to_token)}, "
+        f"refs_manuais_chars={len(normalized_manual_references)}, cache_fp={cache_fingerprint}, "
+        f"cit_sig_in={source_citation_sig}, cit_count_in={source_citation_count}, "
+        f"ph_sig_in={_placeholder_signature(tagged_text)}"
+    )
     
-    # Mapeia modelos disponíveis na API
-    logger.debug("Mapeando modelos disponíveis na API...")
-    available_models = []
-    try:
-        available_models = [
-            m.name for m in genai.list_models()
-            if 'generateContent' in m.supported_generation_methods
-        ]
-        logger.debug(f"Modelos disponíveis: {len(available_models)}")
-    except Exception as e:
-        logger.warning(f"Erro ao listar modelos: {e}")
-    
-    # Filtra modelos preferidos que estão disponíveis
-    valid_models = []
-    for tm in PREFERRED_MODELS:
-        clean_name = tm.replace("models/", "")
-        if tm in available_models or clean_name in available_models:
-            valid_models.append(clean_name)
-            logger.debug(f"Modelo disponível: {clean_name}")
-    
-    if not valid_models:
-        logger.warning(f"Nenhum modelo preferido disponível. Usando fallback: {FALLBACK_MODEL}")
-        valid_models = [FALLBACK_MODEL]
+    valid_models = list(PREFERRED_MODELS)
+    if FALLBACK_MODEL not in valid_models:
+        valid_models.append(FALLBACK_MODEL)
+
+    logger.debug(
+        f"[Pipeline DEBUG] Provider={AI_PROVIDER}; modelos configurados={valid_models}"
+    )
     
     prompt = _build_chapter_prompt(tagged_text, previous_summaries)
     
@@ -722,36 +818,52 @@ def process_chapter_text(
         cached_result = cache_get(cache_input, selected_model)
         if cached_result:
             logger.info("✓ Resultado recuperado do cache")
+            logger.debug(
+                f"[Pipeline DEBUG] Cache hit em '{chapter_name or 'capítulo'}' com {selected_model}; "
+                "etapas de IA foram puladas nesta execução"
+            )
             return cached_result
         
         try:
-            model = genai.GenerativeModel(
-                model_name=selected_model,
-                system_instruction=f"{SYSTEM_INSTRUCTION}\n\n{CITATION_TAG_RULE}"
-            )
+            system_instruction = f"{SYSTEM_INSTRUCTION}\n\n{CITATION_TAG_RULE}"
             
             for attempt in range(AI_MAX_RETRIES):
                 try:
                     logger.debug(f"Tentativa {attempt + 1}/{AI_MAX_RETRIES}")
                     if strict_paragraph_mode:
                         logger.info("Modo estrito por parágrafos ativado")
-                        result_text = _rewrite_by_paragraphs(
-                            model,
+                        result_text, paragraph_stats = _rewrite_by_paragraphs(
+                            client,
+                            selected_model,
+                            system_instruction,
                             tagged_text,
                             previous_summaries,
                             chapter_name,
                         )
-                    else:
-                        response = model.generate_content(
-                            prompt,
-                            generation_config=genai.GenerationConfig(temperature=AI_TEMPERATURE)
+                        logger.debug(
+                            f"[Pipeline DEBUG] Estatísticas parágrafos: "
+                            f"total={paragraph_stats['total']}, "
+                            f"reescritos={paragraph_stats['rewritten']}, "
+                            f"fallback={paragraph_stats['fallback']}, "
+                            f"vazios={paragraph_stats['empty']}"
                         )
-                        result_text = response.text
+                    else:
+                        result_text = _generate_with_groq(
+                            client,
+                            selected_model,
+                            system_instruction,
+                            prompt,
+                            AI_TEMPERATURE,
+                        )
 
                     if not _placeholders_preserved(tagged_text, result_text):
                         logger.warning(
                             f"[Refs] Placeholders alterados pela IA em '{chapter_name or 'capítulo'}'. "
                             "Executando tentativa corretiva."
+                        )
+                        logger.debug(
+                            f"[Refs DEBUG] Diferença antes da tentativa corretiva: "
+                            f"{_summarize_placeholder_diff(tagged_text, result_text)}"
                         )
                         corrective_prompt = (
                             "Você removeu ou alterou placeholders de citação. "
@@ -760,22 +872,58 @@ def process_chapter_text(
                             f"TEXTO ORIGINAL COM MARCADORES:\n{tagged_text}\n\n"
                             f"SUA VERSÃO ANTERIOR:\n{result_text}"
                         )
-                        corrective_response = model.generate_content(
+                        corrected_text = _generate_with_groq(
+                            client,
+                            selected_model,
+                            system_instruction,
                             corrective_prompt,
-                            generation_config=genai.GenerationConfig(temperature=0.0)
+                            0.0,
                         )
-                        corrected_text = corrective_response.text or ""
                         if _placeholders_preserved(tagged_text, corrected_text):
                             result_text = corrected_text
+                            logger.debug("[Refs DEBUG] Tentativa corretiva restaurou os placeholders com sucesso")
                         else:
-                            logger.warning(
+                            fail_msg = (
                                 f"[Refs] Tentativa corretiva falhou em '{chapter_name or 'capítulo'}'. "
-                                "Usando texto com placeholders originais para preservar citações."
+                                + (
+                                    "Abortando capítulo por bloqueio duro de citações."
+                                    if strict_citation_lock
+                                    else "Usando texto com placeholders originais para preservar citações."
+                                )
                             )
+                            logger.warning(fail_msg)
+                            logger.debug(
+                                f"[Refs DEBUG] Diferença após tentativa corretiva: "
+                                f"{_summarize_placeholder_diff(tagged_text, corrected_text)}"
+                            )
+                            if strict_citation_lock:
+                                raise APIException("Bloqueio duro de citações: placeholders não preservados após tentativa corretiva")
                             result_text = tagged_text
 
+                    logger.debug("[Pipeline DEBUG] Restaurando placeholders para citações originais")
                     result_text = restore_citations_from_placeholders(result_text, placeholder_to_token)
+                    logger.debug("[Pipeline DEBUG] Anexando referências manuais ao resultado final")
                     result_text = append_manual_references(result_text, normalized_manual_references)
+                    final_body_text, _final_references = _split_text_before_references(result_text)
+                    final_citation_sig = _citation_signature(final_body_text)
+                    final_citation_count = len(_extract_citation_token_sequence(final_body_text))
+
+                    if final_citation_sig != source_citation_sig or final_citation_count != source_citation_count:
+                        logger.warning(
+                            f"[Refs] Integridade de citações divergente em '{chapter_name or 'capítulo'}': "
+                            f"sig_in={source_citation_sig}, sig_out={final_citation_sig}, "
+                            f"count_in={source_citation_count}, count_out={final_citation_count}"
+                        )
+                        if strict_citation_lock:
+                            raise APIException("Bloqueio duro de citações: assinatura final de citações divergente do texto original")
+
+                    logger.debug(
+                        f"[Pipeline DEBUG] Saída final de '{chapter_name or 'capítulo'}': {len(result_text)} caracteres"
+                    )
+                    logger.debug(
+                        f"[Pipeline DEBUG] Auditoria citações: sig_in={source_citation_sig}, "
+                        f"sig_out={final_citation_sig}, count_in={source_citation_count}, count_out={final_citation_count}"
+                    )
                     
                     # Salva em cache para uso futuro
                     cache_set(cache_input, selected_model, result_text)
@@ -789,7 +937,7 @@ def process_chapter_text(
                     last_error = e
                     
                     # Tratamento específico de erros de quota/rate limit
-                    if any(x in error_msg.lower() for x in ["429", "quota", "exhausted", "limit"]):
+                    if any(x in error_msg.lower() for x in ["429", "quota", "exhausted", "limit", "503", "over capacity"]):
                         if "limit: 0" in error_msg:
                             logger.warning(f"Modelo {selected_model} sem cota (Limit: 0). Pulando...")
                             break

@@ -23,16 +23,17 @@ LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 LOG_FILE = os.path.join(LOG_DIR, "app.log")
 
 # ========== CONFIGURAÇÕES DE IA E MODELOS ==========
+# Provedor de IA (atualmente: Groq)
+AI_PROVIDER = os.getenv("AI_PROVIDER", "groq").lower()
+
 # Ordem de preferência de modelos (tenta em sequência)
 PREFERRED_MODELS: List[str] = [
-    "models/gemini-2.5-flash",
-    "models/gemini-flash-latest",
-    "models/gemini-2.0-flash",
-    "models/gemini-1.5-flash",
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
 ]
 
 # Fallback se nenhum modelo disponível
-FALLBACK_MODEL = "gemini-2.0-flash"
+FALLBACK_MODEL = "llama-3.1-8b-instant"
 
 # Configurações de geração de conteúdo
 AI_TEMPERATURE = float(os.getenv("AI_TEMPERATURE", "0.3"))

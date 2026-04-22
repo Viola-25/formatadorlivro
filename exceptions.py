@@ -9,7 +9,7 @@ class BookFormatterException(Exception):
 
 
 class APIException(BookFormatterException):
-    """Erro relacionado à API do Gemini."""
+    """Erro relacionado à API de IA."""
     pass
 
 

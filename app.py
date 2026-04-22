@@ -18,6 +18,35 @@ from exceptions import DocumentParseError, APIException
 from index_manager import GerenciadorIndice
 
 
+def load_groq_api_key_from_file(file_path: str) -> str:
+    """Carrega a chave da API do Groq a partir de um arquivo local."""
+    if not file_path:
+        return ""
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            raw_content = f.read().strip()
+
+        if not raw_content:
+            return ""
+
+        # Aceita arquivo contendo apenas a chave OU formato .env (GROQ_API_KEY=...)
+        candidate = raw_content.splitlines()[0].strip()
+        if "=" in candidate:
+            key_name, value = candidate.split("=", 1)
+            if key_name.strip().upper() == "GROQ_API_KEY":
+                candidate = value.strip()
+
+        # Remove aspas acidentais
+        candidate = candidate.lstrip("\ufeff").strip().strip('"').strip("'")
+        return candidate
+    except FileNotFoundError:
+        return ""
+    except Exception as e:
+        logger.warning(f"Não foi possível ler o arquivo de chave da API: {e}")
+        return ""
+
+
 def load_progress() -> Dict[str, Any]:
     """
     Carrega o estado do progresso a partir do arquivo JSON.
@@ -136,6 +165,7 @@ def process_files(
     api_key: str,
     manual_references_by_file: Dict[str, str] = None,
     strict_paragraph_mode: bool = False,
+    strict_citation_lock: bool = False,
 ) -> None:
     """
     Pipeline de processamento de arquivos que extrai o texto, 
@@ -143,16 +173,22 @@ def process_files(
     
     Args:
         uploaded_files: Lista de arquivos enviados
-        api_key: Chave da API Gemini
+        api_key: Chave da API Groq
         manual_references_by_file: Mapa {nome_arquivo: referências coladas}
         strict_paragraph_mode: Se True, processa em modo estrito por parágrafos
+        strict_citation_lock: Se True, bloqueia capítulo quando integridade de citações divergir
     """
     if not api_key:
-        st.error("🔑 Por favor, insira a Chave da API (Gemini) na barra lateral antes de processar.")
+        st.error("🔑 Informe a Chave da API (Groq) na barra lateral ou defina GROQ_API_KEY no ambiente antes de processar.")
         logger.warning("Tentativa de processar sem API key")
         return
 
     logger.info(f"Iniciando processamento de {len(uploaded_files)} arquivo(s)")
+    logger.debug(
+        f"[Pipeline DEBUG] Parâmetros globais: strict_paragraph_mode={strict_paragraph_mode}, "
+        f"strict_citation_lock={strict_citation_lock}, "
+        f"arquivos_com_referencias={len([k for k, v in (manual_references_by_file or {}).items() if (v or '').strip()])}"
+    )
 
     if manual_references_by_file is None:
         manual_references_by_file = {}
@@ -216,6 +252,11 @@ def process_files(
             try:
                 logger.info(f"Enviando para IA: {file.name}")
                 manual_references_text = manual_references_by_file.get(file.name, "")
+                logger.debug(
+                    f"[Pipeline DEBUG] {file.name}: refs_manuais_chars={len((manual_references_text or '').strip())}, "
+                    f"modo={'PARÁGRAFOS' if strict_paragraph_mode else 'CAPÍTULO'}, "
+                    f"bloqueio_citacoes={'ON' if strict_citation_lock else 'OFF'}"
+                )
                 ai_text = process_chapter_text(
                     chapter_text,
                     previous_summaries,
@@ -223,6 +264,7 @@ def process_files(
                     chapter_name=file.name,
                     manual_references_text=manual_references_text,
                     strict_paragraph_mode=strict_paragraph_mode,
+                    strict_citation_lock=strict_citation_lock,
                 )
                 logger.debug(f"IA retornou {len(ai_text)} caracteres")
             except APIException as e:
@@ -353,7 +395,28 @@ def main():
     # Configura a barra lateral
     with st.sidebar:
         st.header("⚙️ Configurações")
-        api_key = st.text_input("Chave da API Gemini", type="password", help="Insira sua chave da API do Google Gemini para habilitar a inteligência artificial.")
+        env_api_key = os.getenv("GROQ_API_KEY", "").strip()
+        key_file_path = os.getenv("GROQ_API_KEY_FILE", "groq_api_key.txt").strip()
+        file_api_key = load_groq_api_key_from_file(key_file_path)
+        api_key_input = st.text_input(
+            "Chave da API Groq",
+            type="password",
+            help="Insira sua chave da API do Groq. Se deixar vazio, o app tentará usar GROQ_API_KEY do ambiente ou o arquivo definido em GROQ_API_KEY_FILE.",
+        )
+        # Prioridade: campo manual > arquivo local > variável de ambiente
+        api_key = (api_key_input or file_api_key or env_api_key).strip()
+
+        if api_key_input:
+            st.caption("Usando chave informada no campo")
+        elif file_api_key:
+            st.caption(f"Usando chave carregada do arquivo: {key_file_path}")
+        elif env_api_key:
+            st.caption("Usando GROQ_API_KEY do ambiente")
+        else:
+            st.caption("Sem chave detectada. Preencha o campo, GROQ_API_KEY ou GROQ_API_KEY_FILE")
+
+        if api_key and not api_key.startswith("gsk_"):
+            st.warning("Formato de chave inesperado. A chave da Groq normalmente começa com 'gsk_'.")
         
         st.divider()
         st.header("📥 Arquivos Processados")
@@ -404,6 +467,12 @@ def main():
                 "Modo estrito por parágrafos (mais seguro para preservar citações; pode ser mais lento)",
                 value=True,
                 help="Quando ativado, o texto é revisado em múltiplas requisições por parágrafo para reduzir risco de perda de citações."
+            )
+
+            strict_citation_lock = st.checkbox(
+                "Bloqueio duro de citações (falha o capítulo se houver divergência)",
+                value=False,
+                help="Quando ativado, o capítulo é interrompido se a assinatura/ordem das citações finais divergir do texto original."
             )
 
             require_references_for_all = st.checkbox(
@@ -458,6 +527,7 @@ def main():
                     api_key,
                     manual_references_by_file=manual_references_by_file,
                     strict_paragraph_mode=strict_paragraph_mode,
+                    strict_citation_lock=strict_citation_lock,
                 )
             
         # Exibição do estado atual do projeto

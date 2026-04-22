@@ -6,6 +6,7 @@ from typing import Optional
 from docx import Document
 from docx.shared import Pt, RGBColor, Inches, Cm, Mm
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_COLOR_INDEX
+from docx.enum.section import WD_SECTION
 from docx.oxml.ns import nsdecls, qn
 from docx.oxml import parse_xml, OxmlElement
 from docx2pdf import convert
@@ -82,6 +83,21 @@ def add_page_number(run) -> None:
     run._r.append(fldChar3)
 
 
+def set_section_columns(section, num_columns: int, space_cm: float = 0.5) -> None:
+    """Configura o número de colunas de uma seção via OXML."""
+    sectPr = section._sectPr
+    cols = sectPr.xpath('./w:cols')
+    if cols:
+        cols[0].set(qn('w:num'), str(num_columns))
+        cols[0].set(qn('w:space'), str(int(Cm(space_cm).twips)))
+        return
+
+    new_cols = OxmlElement('w:cols')
+    new_cols.set(qn('w:num'), str(num_columns))
+    new_cols.set(qn('w:space'), str(int(Cm(space_cm).twips)))
+    sectPr.append(new_cols)
+
+
 def sanitize_text_line(line: str) -> str:
     """Remove marcas de formatação indesejadas da linha final."""
     sanitized = line.replace('**', '')
@@ -140,17 +156,8 @@ def generate_formatted_docx(ai_text: str, chapter_name: str) -> str:
         
         logger.debug("Configurações de página definidas")
         
-        # Configura layout de Duas Colunas manipulando o XML da seção
-        sectPr = section._sectPr
-        cols = sectPr.xpath('./w:cols')
-        if cols:
-            cols[0].set(qn('w:num'), '2')
-            cols[0].set(qn('w:space'), str(int(Cm(0.5).twips)))
-        else:
-            new_cols = OxmlElement('w:cols')
-            new_cols.set(qn('w:num'), '2')
-            new_cols.set(qn('w:space'), str(int(Cm(0.5).twips)))
-            sectPr.append(new_cols)
+        # Configura layout de duas colunas para o corpo principal.
+        set_section_columns(section, num_columns=2, space_cm=0.5)
             
         # Insere numeração de páginas no rodapé
         footer = section.footer
@@ -182,12 +189,42 @@ def generate_formatted_docx(ai_text: str, chapter_name: str) -> str:
         current_mode = "DEFAULT"
         current_box_p = None
         resumo_lines = 0
+        in_references_section = False
+        references_section_started = False
         
         for line in lines:
             stripped_line = line.strip()
+
+            is_references_heading = bool(
+                re.match(r'^\s*refer[eê]ncias\s*$', stripped_line, flags=re.IGNORECASE)
+            )
+
+            if is_references_heading and not in_references_section:
+                current_mode = "DEFAULT"
+                in_references_section = True
+
+                if not references_section_started:
+                    # A seção de referências fica em 1 coluna para evitar quebra visual confusa no PDF.
+                    references_section = doc.add_section(WD_SECTION.CONTINUOUS)
+                    references_section.page_width = Cm(DOCUMENT_WIDTH_CM)
+                    references_section.page_height = Cm(DOCUMENT_HEIGHT_CM)
+                    references_section.top_margin = Cm(MARGIN_CM)
+                    references_section.bottom_margin = Cm(MARGIN_CM)
+                    references_section.left_margin = Cm(MARGIN_CM)
+                    references_section.right_margin = Cm(MARGIN_CM)
+                    set_section_columns(references_section, num_columns=1, space_cm=0.0)
+                    references_section_started = True
+                    logger.debug("Seção REFERÊNCIAS detectada: alterando para layout de 1 coluna")
+
+                doc.add_heading("REFERÊNCIAS", level=1)
+                continue
             
             # Tratamento para linhas vazias
             if not stripped_line:
+                if in_references_section:
+                    doc.add_paragraph("")
+                    continue
+
                 if current_mode == "DEFAULT":
                     doc.add_paragraph("")
                 elif current_mode == "BOX_RESUMO" and current_box_p is not None:
@@ -196,6 +233,11 @@ def generate_formatted_docx(ai_text: str, chapter_name: str) -> str:
                 # Sai de blocos de formatação única (exceto resumo e links) se houver quebra de parágrafo
                 if current_mode in ["BOX_RECOMENDACAO", "BOX_ATENCAO", "SUGESTAO_EDICAO"]:
                     current_mode = "DEFAULT"
+                continue
+
+            # Dentro de REFERÊNCIAS, preserva cada linha como texto simples sem heurística de títulos.
+            if in_references_section:
+                doc.add_paragraph(stripped_line)
                 continue
                 
             # Identificação de Tags para mudança de estado e aplicação de estilo

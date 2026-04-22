@@ -1,0 +1,6 @@
+# Secrets
+/groq_api_key.txt
+/secrets/
+*.key
+*.secret
+.env
