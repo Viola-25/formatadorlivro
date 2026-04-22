@@ -10,7 +10,7 @@ from typing import Dict, Any, Optional
 # Importa configurações centralizadas
 from config import (
     STYLE_GUIDE, SYSTEM_INSTRUCTION, PREFERRED_MODELS, FALLBACK_MODEL,
-    AI_TEMPERATURE, AI_MAX_RETRIES, AI_RETRY_DELAY, PROGRESS_FILE
+    CITATION_TAG_RULE, AI_TEMPERATURE, AI_MAX_RETRIES, AI_RETRY_DELAY, PROGRESS_FILE
 )
 from logger import logger
 from cache import cache_get, cache_set
@@ -30,14 +30,15 @@ DIGIT_TO_SUPERSCRIPT = {
     '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹'
 }
 
-# Captura:
-# 1. [números] com separadores
-# 2. Números sobrescritos ¹²³
-# 3. Números normais pegados em palavras: palavra12, palavra6 etc.
-CITATION_TOKEN_RE = re.compile(
+CITATION_PIPELINE_VERSION = "citation-tags-v1"
+REFERENCE_TAG_RE = re.compile(r'\[TAG_REF_(\d+)\]')
+
+# Captura citações numéricas no texto bruto.
+BODY_CITATION_TOKEN_RE = re.compile(
     r'\[(?:\s*\d+(?:\s*[-,;]\s*\d+)*)\]'  # [1], [1, 2], [1-3], etc.
-    r'|[⁰¹²³⁴⁵⁶⁷⁸⁹]+'                      # Sobrescritos ¹²³
-    r'|(?<=[a-záãâàäéèêëíìîïóòôöõúùûüüýÿ][a-záãâàäéèêëíìîïóòôöõúùûüüýÿ])\d+(?=[,.\s\)\]—–-]|$)'  # Números no fim de palavras (evita H1)
+    r'|\((?:\s*\d+(?:\s*[-,;]\s*\d+)*)\)'  # (1), (1, 2), (1-3), etc.
+    r'|[⁰¹²³⁴⁵⁶⁷⁸⁹]+'                          # Sobrescritos ¹²³
+    r'|(?<=[a-záãâàäéèêëíìîïóòôöõúùûüüýÿ][a-záãâàäéèêëíìîïóòôöõúùûüüýÿ])\d+(?=[,\.\s\)\]—–-]|$)'  # Números no fim de palavras (evita H1)
 )
 
 
@@ -73,6 +74,176 @@ def _split_text_before_references(text: str) -> tuple[str, str]:
     return text, ""
 
 
+def _parse_reference_number(line: str) -> Optional[int]:
+    """Extrai o número inicial de uma linha de referência."""
+    clean = line.strip()
+
+    bracket_match = re.match(r'^\[(\d+)\]', clean)
+    if bracket_match:
+        return int(bracket_match.group(1))
+
+    superscript_match = re.match(r'^([⁰¹²³⁴⁵⁶⁷⁸⁹]+)', clean)
+    if superscript_match:
+        return _decode_superscript_number(superscript_match.group(1))
+
+    dot_match = re.match(r'^(\d+)([\.)\-:]?)(\s+|$)', clean)
+    if dot_match:
+        return int(dot_match.group(1))
+
+    compact_match = re.match(r'^(\d+)(\S)', clean)
+    if compact_match:
+        return int(compact_match.group(1))
+
+    return None
+
+
+def _split_reference_entries(references_text: str) -> list[dict[str, Any]]:
+    """Divide a seção de referências em entradas numeradas preservando continuações."""
+    entries: list[dict[str, Any]] = []
+    current_entry: Optional[dict[str, Any]] = None
+
+    for line in references_text.splitlines():
+        if not line.strip():
+            continue
+
+        number = _parse_reference_number(line)
+        if number is not None:
+            if current_entry is not None:
+                entries.append(current_entry)
+            current_entry = {
+                "original_number": number,
+                "lines": [line],
+            }
+            continue
+
+        if current_entry is not None:
+            current_entry["lines"].append(line)
+
+    if current_entry is not None:
+        entries.append(current_entry)
+
+    return entries
+
+
+def _render_reference_entry(entry: dict[str, Any], new_number: int) -> str:
+    """Renderiza uma entrada bibliográfica com o novo marcador numérico."""
+    lines = entry.get("lines", [])
+    if not lines:
+        return ""
+
+    first_line = lines[0].strip()
+    first_line = re.sub(r'^\[(?:\d+)\]\s*', '', first_line)
+    first_line = re.sub(r'^[⁰¹²³⁴⁵⁶⁷⁸⁹]+\s*', '', first_line)
+    first_line = re.sub(r'^\d+(?:[\.)\-:]?)\s*', '', first_line)
+    first_line = re.sub(r'^\d+(?=\S)', '', first_line)
+    first_line = first_line.lstrip()
+
+    rendered_lines = [first_line]
+    rendered_lines.extend(lines[1:])
+    return "\n".join([f"{new_number} {first_line}".rstrip(), *lines[1:]])
+
+
+def preprocess_citations_for_llm(text: str, chapter_name: str = "") -> tuple[str, list[dict[str, Any]], Dict[int, int]]:
+    """Substitui citações numéricas por marcadores TAG_REF antes do envio para a IA."""
+    if not text or not text.strip():
+        return text, [], {}
+
+    body_text, references_text = _split_text_before_references(text)
+    reference_entries = _split_reference_entries(references_text)
+
+    original_number_to_tag_id: Dict[int, int] = {}
+    for tag_id, entry in enumerate(reference_entries, start=1):
+        entry["tag_id"] = tag_id
+        original_number_to_tag_id[int(entry["original_number"])] = tag_id
+
+    logger.debug(
+        f"[Refs DEBUG] Pré-processamento de '{chapter_name or 'capítulo'}': "
+        f"{len(reference_entries)} referência(s) estruturada(s)"
+    )
+
+    def _replace_citation(match: re.Match) -> str:
+        token = match.group(0)
+        numbers = _extract_numbers_from_token(token)
+        if not numbers:
+            return token
+
+        replacement_tags: list[str] = []
+        for number in numbers:
+            tag_id = original_number_to_tag_id.get(number)
+            if tag_id is None:
+                logger.warning(
+                    f"[Refs] Citação {number} em '{chapter_name or 'capítulo'}' sem entrada bibliográfica correspondente"
+                )
+                continue
+            replacement_tags.append(f"[TAG_REF_{tag_id}]")
+
+        if not replacement_tags:
+            return token
+
+        return " ".join(replacement_tags)
+
+    tagged_body = BODY_CITATION_TOKEN_RE.sub(_replace_citation, body_text)
+    return tagged_body, reference_entries, original_number_to_tag_id
+
+
+def postprocess_citations_from_llm(
+    ai_text: str,
+    reference_entries: list[dict[str, Any]],
+    chapter_name: str = ""
+) -> str:
+    """Reconstrói a numeração final das citações e a seção bibliográfica em ordem determinística."""
+    if not ai_text or not ai_text.strip():
+        return ai_text
+
+    body_text, _ = _split_text_before_references(ai_text)
+
+    tag_to_new_number: Dict[int, int] = {}
+
+    def _replace_tag(match: re.Match) -> str:
+        tag_id = int(match.group(1))
+        if tag_id not in tag_to_new_number:
+            tag_to_new_number[tag_id] = len(tag_to_new_number) + 1
+        return _encode_superscript_number(tag_to_new_number[tag_id])
+
+    normalized_body = REFERENCE_TAG_RE.sub(_replace_tag, body_text)
+
+    reference_lookup = {int(entry["tag_id"]): entry for entry in reference_entries if "tag_id" in entry}
+    ordered_tag_ids = [tag_id for tag_id in tag_to_new_number.keys() if tag_id in reference_lookup]
+    remaining_tag_ids = [tag_id for tag_id in reference_lookup.keys() if tag_id not in tag_to_new_number]
+
+    rendered_entries: list[str] = []
+    for tag_id in ordered_tag_ids:
+        entry = reference_lookup[tag_id]
+        new_number = tag_to_new_number[tag_id]
+        rendered = _render_reference_entry(entry, new_number)
+        if rendered:
+            rendered_entries.append(rendered)
+
+    next_number = len(rendered_entries) + 1
+    for tag_id in remaining_tag_ids:
+        entry = reference_lookup[tag_id]
+        rendered = _render_reference_entry(entry, next_number)
+        if rendered:
+            rendered_entries.append(rendered)
+            next_number += 1
+
+    if not rendered_entries:
+        logger.warning(f"[Refs] Nenhuma referência bibliográfica pôde ser reconstruída em '{chapter_name or 'capítulo'}'")
+        return normalized_body.strip()
+
+    normalized_body = normalized_body.rstrip()
+    normalized_references = "\n".join(rendered_entries)
+
+    logger.info(
+        f"[Refs] Pós-processamento aplicado em '{chapter_name or 'capítulo'}': "
+        f"{len(tag_to_new_number)} citação(ões) reordenada(s)."
+    )
+    for tag_id, new_number in sorted(tag_to_new_number.items(), key=lambda item: item[1]):
+        logger.debug(f"[Refs]   TAG_REF_{tag_id} -> {new_number}")
+
+    return f"{normalized_body}\n\nREFERÊNCIAS\n{normalized_references}".strip()
+
+
 def _format_bracket_citation(token: str, mapping: Dict[int, int]) -> str:
     """Reescreve citações entre colchetes preservando a ordem dos números mapeados."""
     mapped_numbers = [mapping.get(number, number) for number in _extract_numbers_from_token(token)]
@@ -94,7 +265,11 @@ def _encode_superscript_number(number: int) -> str:
 
 
 def _extract_numbers_from_token(token: str) -> list[int]:
-    if token.startswith("[") and token.endswith("]"):
+    if (
+        token.startswith("[") and token.endswith("]")
+    ) or (
+        token.startswith("(") and token.endswith(")")
+    ):
         numbers: list[int] = []
         content = token[1:-1]
         for part in re.split(r'\s*[;,]\s*', content):
@@ -125,32 +300,33 @@ def _extract_numbers_from_token(token: str) -> list[int]:
 
 def _renumber_reference_line_marker(line: str, mapping: Dict[int, int]) -> str:
     """Renumera apenas o marcador inicial da linha de referência, preservando o restante."""
-    bracket_match = re.match(r'^(\s*)\[(\d+)\](\s+.*)$', line)
+    bracket_match = re.match(r'^(\s*)\[(\d+)\](\s*.*)$', line)
     if bracket_match:
         prefix, old_number, rest = bracket_match.groups()
         new_number = mapping.get(int(old_number), int(old_number))
-        return f"{prefix}[{new_number}]{rest}"
+        suffix = rest.lstrip()
+        return f"{prefix}[{new_number}] {suffix}".rstrip()
 
-    dot_match = re.match(r'^(\s*)(\d+)([\.)\-:]?)(\s+.*)$', line)
+    dot_match = re.match(r'^(\s*)(\d+)([\.)\-:]?)(\s*.*)$', line)
     if dot_match:
         prefix, old_number, suffix, rest = dot_match.groups()
         new_number = mapping.get(int(old_number), int(old_number))
-        return f"{prefix}{new_number}{suffix}{rest}"
+        suffix_text = rest.lstrip()
+        if suffix_text:
+            return f"{prefix}{new_number}{suffix} {suffix_text}".rstrip()
+        return f"{prefix}{new_number}{suffix}".rstrip()
 
-    superscript_match = re.match(r'^(\s*)([⁰¹²³⁴⁵⁶⁷⁸⁹]+)(\s+.*)$', line)
+    superscript_match = re.match(r'^(\s*)([⁰¹²³⁴⁵⁶⁷⁸⁹]+)(\s*.*)$', line)
     if superscript_match:
         prefix, old_sup, rest = superscript_match.groups()
         old_number = _decode_superscript_number(old_sup)
         if old_number is None:
             return line
         new_number = mapping.get(old_number, old_number)
-        return f"{prefix}{_encode_superscript_number(new_number)}{rest}"
-
-    compact_number_match = re.match(r'^(\s*)(\d+)(\S.*)$', line)
-    if compact_number_match:
-        prefix, old_number, rest = compact_number_match.groups()
-        new_number = mapping.get(int(old_number), int(old_number))
-        return f"{prefix}{new_number}{rest}"
+        suffix_text = rest.lstrip()
+        if suffix_text:
+            return f"{prefix}{_encode_superscript_number(new_number)} {suffix_text}".rstrip()
+        return f"{prefix}{_encode_superscript_number(new_number)}".rstrip()
 
     return line
 
@@ -350,13 +526,12 @@ def process_chapter_text(
     """
     if api_key:
         genai.configure(api_key=api_key)
-    
-    # Tenta recuperar do cache (otimiza chamadas repetitivas)
-    logger.info("Verificando cache para este capítulo...")
-    cached_result = cache_get(chapter_text, "gemini-default")
-    if cached_result:
-        logger.info("✓ Resultado recuperado do cache")
-        return normalize_citation_order(cached_result, chapter_name=chapter_name)
+
+    tagged_text, reference_entries, _reference_mapping = preprocess_citations_for_llm(
+        chapter_text,
+        chapter_name=chapter_name,
+    )
+    cache_input = f"{CITATION_PIPELINE_VERSION}\n{tagged_text}"
     
     # Mapeia modelos disponíveis na API
     logger.debug("Mapeando modelos disponíveis na API...")
@@ -385,6 +560,13 @@ def process_chapter_text(
     # Constrói prompt com contexto e instruções
     prompt = f"""
 Você deve revisar e reescrever o texto do capítulo fornecido abaixo.
+
+IMPORTANTE: o texto já foi pré-processado pelo Python.
+- As citações do corpo foram convertidas para marcadores no formato [TAG_REF_X].
+- A seção bibliográfica original foi removida antes do envio.
+- Você é ESTRITAMENTE PROIBIDO de remover, alterar, duplicar ou reordenar esses marcadores.
+- Mantenha os marcadores exatamente onde estão nos parágrafos correspondentes, mesmo se resumir ou aglutinar o texto.
+- Não crie uma nova bibliografia e não tente numerar referências manualmente.
 
 REGRAS DE ESTILO (STYLE_GUIDE):
 {STYLE_GUIDE}
@@ -416,7 +598,7 @@ CONTEXTO DOS CAPÍTULOS ANTERIORES:
 {previous_summaries if previous_summaries else "Nenhum capítulo processado anteriormente ou sem resumo disponível."}
 
 TEXTO DO CAPÍTULO A SER REVISADO:
-{chapter_text}
+{tagged_text}
 """
     
     last_error = None
@@ -426,11 +608,17 @@ TEXTO DO CAPÍTULO A SER REVISADO:
     
     for selected_model in valid_models:
         logger.info(f"Tentando modelo: {selected_model}")
+        logger.info("Verificando cache para este capítulo...")
+
+        cached_result = cache_get(cache_input, selected_model)
+        if cached_result:
+            logger.info("✓ Resultado recuperado do cache")
+            return cached_result
         
         try:
             model = genai.GenerativeModel(
                 model_name=selected_model,
-                system_instruction=SYSTEM_INSTRUCTION
+                system_instruction=f"{SYSTEM_INSTRUCTION}\n\n{CITATION_TAG_RULE}"
             )
             
             for attempt in range(AI_MAX_RETRIES):
@@ -442,10 +630,14 @@ TEXTO DO CAPÍTULO A SER REVISADO:
                     )
                     
                     result_text = response.text
-                    result_text = normalize_citation_order(result_text, chapter_name=chapter_name)
+                    result_text = postprocess_citations_from_llm(
+                        result_text,
+                        reference_entries,
+                        chapter_name=chapter_name,
+                    )
                     
                     # Salva em cache para uso futuro
-                    cache_set(chapter_text, selected_model, result_text)
+                    cache_set(cache_input, selected_model, result_text)
                     
                     logger.info(f"✓ Sucesso usando {selected_model}!")
                     logger.info("=" * 60)

@@ -25,14 +25,10 @@ LOG_FILE = os.path.join(LOG_DIR, "app.log")
 # ========== CONFIGURAÇÕES DE IA E MODELOS ==========
 # Ordem de preferência de modelos (tenta em sequência)
 PREFERRED_MODELS: List[str] = [
-    "models/gemini-2.5-pro",
     "models/gemini-2.5-flash",
-    "models/gemini-pro-latest",
     "models/gemini-flash-latest",
     "models/gemini-2.0-flash",
-    "models/gemini-1.5-pro",
     "models/gemini-1.5-flash",
-    "models/gemini-pro"
 ]
 
 # Fallback se nenhum modelo disponível
@@ -53,6 +49,13 @@ SYSTEM_INSTRUCTION = (
     "Você é um Editor-Chefe Médico rigoroso, especialista em Atenção Primária à Saúde (APS). "
     "Sua função é revisar, corrigir e reescrever textos médicos focados em guias clínicos e protocolos da APS, "
     "garantindo precisão científica, coesão narrativa entre os capítulos e aderência estrita ao guia de estilo."
+)
+
+CITATION_TAG_RULE = (
+    "O texto contém marcadores de referência no formato [TAG_REF_X]. "
+    "Você é ESTRITAMENTE PROIBIDO de remover, alterar, duplicar ou reordenar esses marcadores. "
+    "Mantenha-os exatamente onde estão nos parágrafos correspondentes, mesmo se você resumir ou aglutinar o texto. "
+    "Não crie uma bibliografia nova e não altere referências bibliográficas; apenas preserve os marcadores recebidos."
 )
 
 # ========== TAGS DE FORMATAÇÃO ==========
