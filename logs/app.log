@@ -1,8 +1,30 @@
-2026-04-22 18:39:15,677 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-22_183915.json
-2026-04-22 18:39:15,678 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-22 18:39:26,508 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-22_183926.json
-2026-04-22 18:39:26,512 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-22 18:39:28,085 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-22_183928.json
-2026-04-22 18:39:28,086 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-22 18:39:39,628 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-22_183939.json
-2026-04-22 18:39:39,629 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
+2026-04-22 18:42:15,656 - BookFormatter - INFO - Log reiniciado para novo capítulo: Apoio Matricial na Atenção Primária à Saúde.docx
+2026-04-22 18:42:15,657 - BookFormatter - INFO - Processando arquivo: Apoio Matricial na Atenção Primária à Saúde.docx
+2026-04-22 18:42:15,659 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-22_184215.json
+2026-04-22 18:42:15,660 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
+2026-04-22 18:42:15,662 - BookFormatter - INFO - Extraindo texto de: temp\Apoio Matricial na Atenção Primária à Saúde.docx
+2026-04-22 18:42:15,684 - BookFormatter - INFO - Resumos anteriores agregados: 0 capítulo(s)
+2026-04-22 18:42:15,685 - BookFormatter - INFO - Enviando para IA: Apoio Matricial na Atenção Primária à Saúde.docx
+2026-04-22 18:42:16,622 - BookFormatter - INFO - ============================================================
+2026-04-22 18:42:16,622 - BookFormatter - INFO - Iniciando processamento de capítulo com IA
+2026-04-22 18:42:16,622 - BookFormatter - INFO - ============================================================
+2026-04-22 18:42:16,622 - BookFormatter - INFO - Tentando modelo: gemini-2.5-flash
+2026-04-22 18:42:16,622 - BookFormatter - INFO - Verificando cache para este capítulo...
+2026-04-22 18:42:16,623 - BookFormatter - INFO - Cache hit para 44fafd2bbcd0f7882b0fc0e3cd27e0f9_gemini-2.5-flash
+2026-04-22 18:42:16,623 - BookFormatter - INFO - ✓ Resultado recuperado do cache
+2026-04-22 18:42:16,624 - BookFormatter - INFO - Índice atualizado: Apoio Matricial na Atenção Primária à Saúde com 5 subtópicos
+2026-04-22 18:42:16,626 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-22_184216.json
+2026-04-22 18:42:16,627 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
+2026-04-22 18:42:16,628 - BookFormatter - INFO - Índice processado: Apoio Matricial na Atenção Primária à Saúde
+2026-04-22 18:42:16,631 - BookFormatter - INFO - Gerando DOCX: Apoio Matricial na Atenção Primária à Saúde.docx
+2026-04-22 18:42:16,631 - BookFormatter - INFO - Gerando DOCX formatado para: Apoio Matricial na Atenção Primária à Saúde.docx
+2026-04-22 18:42:16,953 - BookFormatter - INFO - Documento DOCX salvo: Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
+2026-04-22 18:42:16,955 - BookFormatter - INFO - DOCX gerado: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
+2026-04-22 18:42:16,956 - BookFormatter - INFO - Convertendo para PDF: Apoio Matricial na Atenção Primária à Saúde.docx
+2026-04-22 18:42:16,956 - BookFormatter - INFO - Convertendo para PDF: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
+2026-04-22 18:42:23,804 - BookFormatter - INFO - PDF gerado com sucesso: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.pdf
+2026-04-22 18:42:23,804 - BookFormatter - INFO - PDF gerado com sucesso
+2026-04-22 18:42:23,805 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-22_184223.json
+2026-04-22 18:42:23,806 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
+2026-04-22 18:42:23,808 - BookFormatter - INFO - ✓ Capítulo processado com sucesso: Apoio Matricial na Atenção Primária à Saúde.docx
+2026-04-22 18:42:23,808 - BookFormatter - INFO - Processamento concluído: 1 sucesso(s), 0 erro(s)

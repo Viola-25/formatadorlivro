@@ -5,6 +5,7 @@ import os
 import time
 import re
 import unicodedata
+from collections import Counter
 from typing import Dict, Any, Optional
 
 # Importa configurações centralizadas
@@ -30,8 +31,9 @@ DIGIT_TO_SUPERSCRIPT = {
     '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹'
 }
 
-CITATION_PIPELINE_VERSION = "citation-tags-v1"
+CITATION_PIPELINE_VERSION = "citation-tags-v2"
 REFERENCE_TAG_RE = re.compile(r'\[TAG_REF_(\d+)\]')
+CITATION_PLACEHOLDER_RE = re.compile(r'\[TAG_CIT_(\d+)\]')
 
 # Captura citações numéricas no texto bruto.
 BODY_CITATION_TOKEN_RE = re.compile(
@@ -184,6 +186,193 @@ def preprocess_citations_for_llm(text: str, chapter_name: str = "") -> tuple[str
 
     tagged_body = BODY_CITATION_TOKEN_RE.sub(_replace_citation, body_text)
     return tagged_body, reference_entries, original_number_to_tag_id
+
+
+def tokenize_citations_for_llm(body_text: str, chapter_name: str = "") -> tuple[str, Dict[str, str]]:
+    """Substitui cada citação do corpo por um placeholder único para preservar posição e ordem."""
+    if not body_text:
+        return body_text, {}
+
+    placeholder_to_token: Dict[str, str] = {}
+
+    def _replace(match: re.Match) -> str:
+        token = match.group(0)
+        placeholder = f"[TAG_CIT_{len(placeholder_to_token) + 1}]"
+        placeholder_to_token[placeholder] = token
+        return placeholder
+
+    tagged_body = BODY_CITATION_TOKEN_RE.sub(_replace, body_text)
+    logger.debug(
+        f"[Refs DEBUG] Tokenização de citações em '{chapter_name or 'capítulo'}': "
+        f"{len(placeholder_to_token)} marcador(es) [TAG_CIT_X]"
+    )
+    return tagged_body, placeholder_to_token
+
+
+def restore_citations_from_placeholders(ai_text: str, placeholder_to_token: Dict[str, str]) -> str:
+    """Restaura as citações originais a partir dos placeholders [TAG_CIT_X]."""
+    if not ai_text or not placeholder_to_token:
+        return ai_text
+
+    restored = ai_text
+    # Ordenação por tamanho evita colisões em placeholders com prefixos semelhantes.
+    for placeholder in sorted(placeholder_to_token.keys(), key=len, reverse=True):
+        restored = restored.replace(placeholder, placeholder_to_token[placeholder])
+    return restored
+
+
+def _normalize_manual_references_text(references_text: str) -> str:
+    """Normaliza texto de referências colado pelo usuário, removendo cabeçalho duplicado."""
+    if not references_text or not references_text.strip():
+        return ""
+
+    lines = references_text.splitlines()
+    first_content_index = None
+    for idx, line in enumerate(lines):
+        if line.strip():
+            first_content_index = idx
+            break
+
+    if first_content_index is None:
+        return ""
+
+    first_line = lines[first_content_index]
+    if _is_reference_heading_line(first_line):
+        lines = lines[first_content_index + 1:]
+    else:
+        lines = lines[first_content_index:]
+
+    return "\n".join(lines).strip()
+
+
+def append_manual_references(ai_body_text: str, manual_references_text: str) -> str:
+    """Anexa a seção REFERÊNCIAS (colada pelo usuário) ao texto final, sem alterar citações."""
+    normalized_references = _normalize_manual_references_text(manual_references_text)
+    if not normalized_references:
+        return ai_body_text.strip()
+
+    clean_body = ai_body_text.strip()
+    if "[DADOS_INDICE]" in clean_body:
+        parts = clean_body.split("[DADOS_INDICE]", 1)
+        body_main = parts[0].rstrip()
+        index_json = parts[1].strip()
+        return f"{body_main}\n\nREFERÊNCIAS\n{normalized_references}\n\n[DADOS_INDICE]\n{index_json}".strip()
+
+    return f"{clean_body}\n\nREFERÊNCIAS\n{normalized_references}".strip()
+
+
+def _extract_placeholder_multiset(text: str) -> Counter:
+    return Counter(CITATION_PLACEHOLDER_RE.findall(text or ""))
+
+
+def _placeholders_preserved(source_text: str, candidate_text: str) -> bool:
+    """Valida se todos os placeholders de citação foram preservados sem perda/duplicação."""
+    return _extract_placeholder_multiset(source_text) == _extract_placeholder_multiset(candidate_text)
+
+
+def _build_chapter_prompt(tagged_text: str, previous_summaries: str) -> str:
+    """Constrói prompt principal do capítulo com placeholders de citação imutáveis."""
+    return f"""
+Você deve revisar e reescrever o texto do capítulo fornecido abaixo.
+
+IMPORTANTE: o texto já foi pré-processado pelo Python.
+- As citações do corpo foram convertidas para marcadores no formato [TAG_CIT_X].
+- A seção bibliográfica NÃO foi enviada para você.
+- Você é ESTRITAMENTE PROIBIDO de remover, alterar, duplicar ou reordenar esses marcadores.
+- Mantenha os marcadores exatamente onde estão nos parágrafos correspondentes, mesmo se resumir ou aglutinar o texto.
+- Não crie uma nova bibliografia e não tente numerar referências manualmente.
+
+REGRAS DE ESTILO (STYLE_GUIDE):
+{STYLE_GUIDE}
+
+INSTRUÇÕES GERAIS DE CONSERVAÇÃO:
+- NÃO resuma o texto.
+- NÃO elimine conteúdo clínico ou detalhes importantes.
+- Mantenha o tamanho do capítulo tão grande quanto o original, preservando todas as informações relevantes.
+- Corrija apenas o necessário: gramática, ortografia, coesão, clareza e estilo.
+- Faça mudanças mínimas e conservadoras; preserve o significado original.
+- Use a mesma estrutura de ideias, ajustando títulos e subtítulos apenas para maior clareza.
+
+INSTRUÇÕES DE FORMATAÇÃO E ESTRUTURA:
+1. Reescreva o texto de forma uniforme baseando-se estritamente no STYLE_GUIDE.
+2. Estruture o texto principal utilizando marcações de Títulos (H1) e Subtítulos (H2) curtos e claros em linhas isoladas. Eles devem obrigatoriamente estar SEM pontuação final (como pontos ou dois-pontos) para que o formatador DOCX consiga capturá-los e aplicar os estilos de cabeçalho.
+3. Insira as seguintes tags no texto, onde for mais apropriado:
+   - [BOX_RESUMO]: Logo após o título do capítulo, extraia de 3 a 5 tópicos cruciais e insira a tag [BOX_RESUMO] seguida do texto "PONTOS IMPORTANTES", estruturando os dados em bullet points curtos e diretos. Evite parágrafos longos dentro deste box.
+   - [BOX_RECOMENDACAO]: Utilize para destacar intervenções clínicas importantes ou condutas recomendadas.
+   - [BOX_ATENCAO]: Utilize para destacar riscos, contraindicações ou alertas clínicos cruciais.
+   - [SUGESTAO_EDICAO]: Utilize caso encontre inconsistências técnicas ou mudanças significativas e informe claramente o que precisa ser verificado ou validado pelo autor original.
+4. O box [BOX_RESUMO] deve conter apenas 3 a 5 bullet points curtos com as mensagens principais do capítulo. Esta é a única parte do texto que pode ser menor; o restante do capítulo deve manter o tamanho original e todas as informações relevantes.
+5. CITAÇÕES E REFERÊNCIAS: Mantenha rigorosamente a mesma numeração e formato (seja sobrescrito ¹, ², ou colchetes [1]) que vieram no texto original. NÃO tente reordenar, NÃO renumere e NÃO altere referências.
+6. Não insira asteriscos (*), hashtags (#) ou outras marcas de markdown no texto final. O texto deve estar limpo e pronto para formatação.
+7. Ao final de tudo, adicione a tag [DADOS_INDICE] seguida de um JSON estrito contendo duas chaves: 'titulo_capitulo' (o título definitivo do texto lido) e 'subtopicos' (uma lista de strings com os 3 a 5 principais tópicos abordados no capítulo).
+
+*** REGRAS ABSOLUTAS PARA CITAÇÕES E REFERÊNCIAS BIBLIOGRÁFICAS ***
+- PROIBIDO ALTERAR NÚMEROS: Você NÃO DEVE, sob nenhuma hipótese, reordenar, renomear ou alterar os números das citações sobrescritas no meio do texto.
+- FIDELIDADE À LISTA ORIGINAL: A seção de "REFERÊNCIAS" será inserida pelo sistema no final do texto, mantendo a ordem original do usuário.
+- PROIBIDO ALUCINAR LINKS: NÃO adicione links externos, sites (como OPAS, Ministério da Saúde, SBMFC) ou novas referências que não constem no texto base enviado. Limite-se estritamente ao material fornecido.
+
+CONTEXTO DOS CAPÍTULOS ANTERIORES:
+(Utilize este contexto para manter a coesão narrativa, evitar repetições desnecessárias e garantir a continuidade do guia)
+{previous_summaries if previous_summaries else "Nenhum capítulo processado anteriormente ou sem resumo disponível."}
+
+TEXTO DO CAPÍTULO A SER REVISADO:
+{tagged_text}
+"""
+
+
+def _build_paragraph_prompt(tagged_paragraph: str, previous_summaries: str) -> str:
+    """Prompt estrito para revisão de um único parágrafo preservando placeholders."""
+    return f"""
+Reescreva APENAS o parágrafo abaixo mantendo o conteúdo técnico e o estilo do guia.
+
+REGRAS OBRIGATÓRIAS:
+- Preserve todos os placeholders [TAG_CIT_X] exatamente como estão.
+- NÃO adicione/remova/duplique/reordene placeholders.
+- NÃO adicione bibliografia, links, markdown, títulos extras nem JSON.
+- Retorne somente o parágrafo revisado.
+
+CONTEXTO NARRATIVO (resumo dos capítulos anteriores):
+{previous_summaries if previous_summaries else "Sem contexto anterior."}
+
+PARÁGRAFO:
+{tagged_paragraph}
+"""
+
+
+def _rewrite_by_paragraphs(
+    model: genai.GenerativeModel,
+    tagged_text: str,
+    previous_summaries: str,
+    chapter_name: str,
+) -> str:
+    """Processa o capítulo por parágrafos para reduzir risco de perda de citações."""
+    paragraphs = [p for p in tagged_text.split("\n\n")]
+    rewritten_paragraphs: list[str] = []
+
+    for idx, paragraph in enumerate(paragraphs, start=1):
+        if not paragraph.strip():
+            rewritten_paragraphs.append(paragraph)
+            continue
+
+        paragraph_prompt = _build_paragraph_prompt(paragraph, previous_summaries)
+        response = model.generate_content(
+            paragraph_prompt,
+            generation_config=genai.GenerationConfig(temperature=AI_TEMPERATURE)
+        )
+        candidate = (response.text or "").strip()
+
+        if not _placeholders_preserved(paragraph, candidate):
+            logger.warning(
+                f"[Refs] Placeholders alterados no parágrafo {idx} de '{chapter_name or 'capítulo'}'. "
+                "Aplicando fallback para preservar citação."
+            )
+            rewritten_paragraphs.append(paragraph)
+            continue
+
+        rewritten_paragraphs.append(candidate)
+
+    merged = "\n\n".join(rewritten_paragraphs).strip()
+    return merged
 
 
 def postprocess_citations_from_llm(
@@ -452,7 +641,9 @@ def process_chapter_text(
     chapter_text: str,
     previous_summaries: str,
     api_key: Optional[str] = None,
-    chapter_name: str = ""
+    chapter_name: str = "",
+    manual_references_text: str = "",
+    strict_paragraph_mode: bool = False,
 ) -> str:
     """
     Envia o texto para a API do Gemini processar de acordo com o STYLE_GUIDE e instruções.
@@ -480,11 +671,18 @@ def process_chapter_text(
     if api_key:
         genai.configure(api_key=api_key)
 
-    tagged_text, _reference_entries, _reference_mapping = preprocess_citations_for_llm(
-        chapter_text,
+    chapter_body_text, _original_references = _split_text_before_references(chapter_text)
+    tagged_text, placeholder_to_token = tokenize_citations_for_llm(
+        chapter_body_text,
         chapter_name=chapter_name,
     )
-    cache_input = f"{CITATION_PIPELINE_VERSION}\n{tagged_text}"
+    normalized_manual_references = _normalize_manual_references_text(manual_references_text)
+    cache_input = (
+        f"{CITATION_PIPELINE_VERSION}\n"
+        f"MODE:{'PARAGRAPH' if strict_paragraph_mode else 'CHAPTER'}\n"
+        f"BODY:\n{tagged_text}\n"
+        f"MANUAL_REFS:\n{normalized_manual_references}"
+    )
     
     # Mapeia modelos disponíveis na API
     logger.debug("Mapeando modelos disponíveis na API...")
@@ -510,53 +708,7 @@ def process_chapter_text(
         logger.warning(f"Nenhum modelo preferido disponível. Usando fallback: {FALLBACK_MODEL}")
         valid_models = [FALLBACK_MODEL]
     
-    # Constrói prompt com contexto e instruções
-    prompt = f"""
-Você deve revisar e reescrever o texto do capítulo fornecido abaixo.
-
-IMPORTANTE: o texto já foi pré-processado pelo Python.
-- As citações do corpo foram convertidas para marcadores no formato [TAG_REF_X].
-- A seção bibliográfica original foi removida antes do envio.
-- Você é ESTRITAMENTE PROIBIDO de remover, alterar, duplicar ou reordenar esses marcadores.
-- Mantenha os marcadores exatamente onde estão nos parágrafos correspondentes, mesmo se resumir ou aglutinar o texto.
-- Não crie uma nova bibliografia e não tente numerar referências manualmente.
-
-REGRAS DE ESTILO (STYLE_GUIDE):
-{STYLE_GUIDE}
-
-INSTRUÇÕES GERAIS DE CONSERVAÇÃO:
-- NÃO resuma o texto.
-- NÃO elimine conteúdo clínico ou detalhes importantes.
-- Mantenha o tamanho do capítulo tão grande quanto o original, preservando todas as informações relevantes.
-- Corrija apenas o necessário: gramática, ortografia, coesão, clareza e estilo.
-- Faça mudanças mínimas e conservadoras; preserve o significado original.
-- Use a mesma estrutura de ideias, ajustando títulos e subtítulos apenas para maior clareza.
-
-INSTRUÇÕES DE FORMATAÇÃO E ESTRUTURA:
-1. Reescreva o texto de forma uniforme baseando-se estritamente no STYLE_GUIDE.
-2. Estruture o texto principal utilizando marcações de Títulos (H1) e Subtítulos (H2) curtos e claros em linhas isoladas. Eles devem obrigatoriamente estar SEM pontuação final (como pontos ou dois-pontos) para que o formatador DOCX consiga capturá-los e aplicar os estilos de cabeçalho.
-3. Insira as seguintes tags no texto, onde for mais apropriado:
-   - [BOX_RESUMO]: Logo após o título do capítulo, extraia de 3 a 5 tópicos cruciais e insira a tag [BOX_RESUMO] seguida do texto "PONTOS IMPORTANTES", estruturando os dados em bullet points curtos e diretos. Evite parágrafos longos dentro deste box.
-   - [BOX_RECOMENDACAO]: Utilize para destacar intervenções clínicas importantes ou condutas recomendadas.
-   - [BOX_ATENCAO]: Utilize para destacar riscos, contraindicações ou alertas clínicos cruciais.
-   - [SUGESTAO_EDICAO]: Utilize caso encontre inconsistências técnicas ou mudanças significativas e informe claramente o que precisa ser verificado ou validado pelo autor original.
-4. O box [BOX_RESUMO] deve conter apenas 3 a 5 bullet points curtos com as mensagens principais do capítulo. Esta é a única parte do texto que pode ser menor; o restante do capítulo deve manter o tamanho original e todas as informações relevantes.
-5. CITAÇÕES E REFERÊNCIAS: Mantenha rigorosamente a mesma numeração e formato (seja sobrescrito ¹, ², ou colchetes [1]) que vieram no texto original. NÃO tente reordenar, NÃO renumere e NÃO altere a lista bibliográfica no final do documento. Apenas preserve a citação exatamente onde ela estava.
-6. Não insira asteriscos (*), hashtags (#) ou outras marcas de markdown no texto final. O texto deve estar limpo e pronto para formatação.
-7. Ao final de tudo, adicione a tag [DADOS_INDICE] seguida de um JSON estrito contendo duas chaves: 'titulo_capitulo' (o título definitivo do texto lido) e 'subtopicos' (uma lista de strings com os 3 a 5 principais tópicos abordados no capítulo).
-
-*** REGRAS ABSOLUTAS PARA CITAÇÕES E REFERÊNCIAS BIBLIOGRÁFICAS ***
-- PROIBIDO ALTERAR NÚMEROS: Você NÃO DEVE, sob nenhuma hipótese, reordenar, renomear ou alterar os números das citações sobrescritas no meio do texto.
-- FIDELIDADE À LISTA ORIGINAL: Mantenha a seção de "REFERÊNCIAS" no final do texto EXATAMENTE igual à fornecida no documento original, respeitando a mesma ordem numérica. 
-- PROIBIDO ALUCINAR LINKS: NÃO adicione links externos, sites (como OPAS, Ministério da Saúde, SBMFC) ou novas referências que não constem no texto base enviado. Limite-se estritamente ao material fornecido.
-
-CONTEXTO DOS CAPÍTULOS ANTERIORES:
-(Utilize este contexto para manter a coesão narrativa, evitar repetições desnecessárias e garantir a continuidade do guia)
-{previous_summaries if previous_summaries else "Nenhum capítulo processado anteriormente ou sem resumo disponível."}
-
-TEXTO DO CAPÍTULO A SER REVISADO:
-{tagged_text}
-"""
+    prompt = _build_chapter_prompt(tagged_text, previous_summaries)
     
     last_error = None
     logger.info("=" * 60)
@@ -581,14 +733,49 @@ TEXTO DO CAPÍTULO A SER REVISADO:
             for attempt in range(AI_MAX_RETRIES):
                 try:
                     logger.debug(f"Tentativa {attempt + 1}/{AI_MAX_RETRIES}")
-                    response = model.generate_content(
-                        prompt,
-                        generation_config=genai.GenerationConfig(temperature=AI_TEMPERATURE)
-                    )
-                    
-                    result_text = response.text
-                    # Pós-processamento de referências desativado para preservar
-                    # integralmente a saída gerada pela IA.
+                    if strict_paragraph_mode:
+                        logger.info("Modo estrito por parágrafos ativado")
+                        result_text = _rewrite_by_paragraphs(
+                            model,
+                            tagged_text,
+                            previous_summaries,
+                            chapter_name,
+                        )
+                    else:
+                        response = model.generate_content(
+                            prompt,
+                            generation_config=genai.GenerationConfig(temperature=AI_TEMPERATURE)
+                        )
+                        result_text = response.text
+
+                    if not _placeholders_preserved(tagged_text, result_text):
+                        logger.warning(
+                            f"[Refs] Placeholders alterados pela IA em '{chapter_name or 'capítulo'}'. "
+                            "Executando tentativa corretiva."
+                        )
+                        corrective_prompt = (
+                            "Você removeu ou alterou placeholders de citação. "
+                            "Reescreva novamente mantendo TODOS os marcadores [TAG_CIT_X] "
+                            "exatamente na mesma quantidade do texto original.\n\n"
+                            f"TEXTO ORIGINAL COM MARCADORES:\n{tagged_text}\n\n"
+                            f"SUA VERSÃO ANTERIOR:\n{result_text}"
+                        )
+                        corrective_response = model.generate_content(
+                            corrective_prompt,
+                            generation_config=genai.GenerationConfig(temperature=0.0)
+                        )
+                        corrected_text = corrective_response.text or ""
+                        if _placeholders_preserved(tagged_text, corrected_text):
+                            result_text = corrected_text
+                        else:
+                            logger.warning(
+                                f"[Refs] Tentativa corretiva falhou em '{chapter_name or 'capítulo'}'. "
+                                "Usando texto com placeholders originais para preservar citações."
+                            )
+                            result_text = tagged_text
+
+                    result_text = restore_citations_from_placeholders(result_text, placeholder_to_token)
+                    result_text = append_manual_references(result_text, normalized_manual_references)
                     
                     # Salva em cache para uso futuro
                     cache_set(cache_input, selected_model, result_text)

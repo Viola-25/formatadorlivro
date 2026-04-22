@@ -131,7 +131,12 @@ def update_chapter_index(state: Dict[str, Any], title: str, subtopics: list) -> 
         logger.warning(f"Dados de índice inválidos: {e}")
         return False
 
-def process_files(uploaded_files: list, api_key: str) -> None:
+def process_files(
+    uploaded_files: list,
+    api_key: str,
+    manual_references_by_file: Dict[str, str] = None,
+    strict_paragraph_mode: bool = False,
+) -> None:
     """
     Pipeline de processamento de arquivos que extrai o texto, 
     envia para IA e formata o resultado.
@@ -139,6 +144,8 @@ def process_files(uploaded_files: list, api_key: str) -> None:
     Args:
         uploaded_files: Lista de arquivos enviados
         api_key: Chave da API Gemini
+        manual_references_by_file: Mapa {nome_arquivo: referências coladas}
+        strict_paragraph_mode: Se True, processa em modo estrito por parágrafos
     """
     if not api_key:
         st.error("🔑 Por favor, insira a Chave da API (Gemini) na barra lateral antes de processar.")
@@ -146,6 +153,9 @@ def process_files(uploaded_files: list, api_key: str) -> None:
         return
 
     logger.info(f"Iniciando processamento de {len(uploaded_files)} arquivo(s)")
+
+    if manual_references_by_file is None:
+        manual_references_by_file = {}
     
     st.markdown("### ⚙️ Processamento em Andamento")
     progress_bar = st.progress(0, text="Iniciando...")
@@ -205,11 +215,14 @@ def process_files(uploaded_files: list, api_key: str) -> None:
             status_text.info(f"**Analisando com IA:** `{file.name}` (Isso pode levar alguns instantes...)")
             try:
                 logger.info(f"Enviando para IA: {file.name}")
+                manual_references_text = manual_references_by_file.get(file.name, "")
                 ai_text = process_chapter_text(
                     chapter_text,
                     previous_summaries,
                     api_key,
-                    chapter_name=file.name
+                    chapter_name=file.name,
+                    manual_references_text=manual_references_text,
+                    strict_paragraph_mode=strict_paragraph_mode,
                 )
                 logger.debug(f"IA retornou {len(ai_text)} caracteres")
             except APIException as e:
@@ -386,9 +399,35 @@ def main():
                 type=['docx', 'txt', 'png', 'jpg'], 
                 accept_multiple_files=True
             )
+
+            strict_paragraph_mode = st.checkbox(
+                "Modo estrito por parágrafos (mais seguro para preservar citações; pode ser mais lento)",
+                value=True,
+                help="Quando ativado, o texto é revisado em múltiplas requisições por parágrafo para reduzir risco de perda de citações."
+            )
+
+            require_references_for_all = st.checkbox(
+                "Bloquear processamento se algum capítulo estiver sem referências",
+                value=False,
+                help="Validação opcional: quando ativada, exige referências preenchidas para todos os capítulos antes de iniciar."
+            )
+
+        manual_references_by_file: Dict[str, str] = {}
         
         if uploaded_files:
             st.info(f"📁 **{len(uploaded_files)} arquivo(s)** carregado(s) e prontos para processamento na fila.")
+
+            st.subheader("2. Cole as Referências por Capítulo")
+            st.caption("Preencha cada capítulo com sua própria seção de referências. O sistema anexará cada bloco ao capítulo correspondente.")
+
+            for file in uploaded_files:
+                field_key = f"refs_{file.name}"
+                manual_references_by_file[file.name] = st.text_area(
+                    f"Referências para: {file.name}",
+                    height=140,
+                    key=field_key,
+                    placeholder="Exemplo:\n1. Autor A...\n2. Autor B..."
+                )
             
             # Registrar pendentes silenciosamente
             for file in uploaded_files:
@@ -398,7 +437,28 @@ def main():
                     
             # Botão de iniciar processamento na tela principal
             if st.button("▶️ Iniciar Processamento Inteligente", type="primary", use_container_width=True):
-                process_files(uploaded_files, api_key)
+                if require_references_for_all:
+                    missing_references = [
+                        file.name for file in uploaded_files
+                        if not manual_references_by_file.get(file.name, "").strip()
+                    ]
+
+                    if missing_references:
+                        logger.warning(
+                            "Processamento bloqueado: capítulos sem referências preenchidas: "
+                            + ", ".join(missing_references)
+                        )
+                        st.error("❌ Processamento bloqueado: preencha as referências dos capítulos abaixo:")
+                        for missing_file in missing_references:
+                            st.markdown(f"- {missing_file}")
+                        st.stop()
+
+                process_files(
+                    uploaded_files,
+                    api_key,
+                    manual_references_by_file=manual_references_by_file,
+                    strict_paragraph_mode=strict_paragraph_mode,
+                )
             
         # Exibição do estado atual do projeto
         st.divider()

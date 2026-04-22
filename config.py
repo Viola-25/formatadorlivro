@@ -52,7 +52,7 @@ SYSTEM_INSTRUCTION = (
 )
 
 CITATION_TAG_RULE = (
-    "O texto contém marcadores de referência no formato [TAG_REF_X]. "
+    "O texto contém marcadores de referência no formato [TAG_CIT_X]. "
     "Você é ESTRITAMENTE PROIBIDO de remover, alterar, duplicar ou reordenar esses marcadores. "
     "Mantenha-os exatamente onde estão nos parágrafos correspondentes, mesmo se você resumir ou aglutinar o texto. "
     "Não crie uma bibliografia nova e não altere referências bibliográficas; apenas preserve os marcadores recebidos.\n\n"
