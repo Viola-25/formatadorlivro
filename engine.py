@@ -33,9 +33,14 @@ DIGIT_TO_SUPERSCRIPT = {
     '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹'
 }
 
-CITATION_PIPELINE_VERSION = "citation-tags-v2"
+CITATION_PIPELINE_VERSION = "citation-tags-v3"
 REFERENCE_TAG_RE = re.compile(r'\[TAG_REF_(\d+)\]')
 CITATION_PLACEHOLDER_RE = re.compile(r'\[TAG_CIT_(\d+)\]')
+BOX_RESUMO_TAG = "[BOX_RESUMO]"
+BOX_RECOMENDACAO_TAG = "[BOX_RECOMENDACAO]"
+BOX_ATENCAO_TAG = "[BOX_ATENCAO]"
+MAX_RECOMMENDATION_BOXES = 2
+MAX_ATTENTION_BOXES = 2
 
 # Captura citações numéricas no texto bruto.
 BODY_CITATION_TOKEN_RE = re.compile(
@@ -317,6 +322,398 @@ def _summarize_placeholder_diff(source_text: str, candidate_text: str) -> str:
     )
 
 
+def _split_index_block(text: str) -> tuple[str, str]:
+    """Separa corpo e bloco [DADOS_INDICE] para não contaminar regras de box."""
+    if "[DADOS_INDICE]" not in (text or ""):
+        return (text or "").strip(), ""
+
+    body, index_block = (text or "").split("[DADOS_INDICE]", 1)
+    return body.strip(), index_block.strip()
+
+
+def _strip_box_tags_only(line: str) -> str:
+    """Remove apenas marcadores de box da linha, preservando o conteúdo textual."""
+    return (
+        line.replace(BOX_RESUMO_TAG, "")
+        .replace(BOX_RECOMENDACAO_TAG, "")
+        .replace(BOX_ATENCAO_TAG, "")
+        .strip()
+    )
+
+
+def _is_heading_candidate(line: str) -> bool:
+    clean = line.strip()
+    if not clean:
+        return False
+
+    return (
+        len(clean) < 60
+        and not clean.endswith(".")
+        and not clean.endswith(":")
+        and not clean.startswith("-")
+        and not clean.startswith("*")
+        and not clean.startswith("[")
+    )
+
+
+def _generate_summary_bullets_from_body(body_text: str) -> list[str]:
+    """Gera 3-5 bullets curtos para o box de resumo quando a IA não inserir nenhum."""
+    lines: list[str] = []
+    skipped_headings = 0
+    for raw_line in (body_text or "").splitlines():
+        clean = _strip_box_tags_only(raw_line)
+        clean = re.sub(r'\[TAG_CIT_\d+\]', '', clean).strip()
+        if not clean:
+            continue
+        if _is_reference_heading_line(clean):
+            continue
+        if clean.startswith("["):
+            continue
+        if _is_heading_candidate(clean):
+            # Evita incluir titulo/subtitulo como bullet de "PONTOS IMPORTANTES".
+            skipped_headings += 1
+            if skipped_headings <= 3:
+                continue
+        lines.append(clean)
+        if len(lines) >= 12:
+            break
+
+    bullets: list[str] = []
+    for line in lines:
+        parts = re.split(r'(?<=[\.!?])\s+', line)
+        for part in parts:
+            sentence = part.strip(" -;,:")
+            if len(sentence) < 28:
+                continue
+            if len(sentence) > 140:
+                continue
+            if sentence[-1] not in ".!?":
+                sentence = sentence + "."
+            bullets.append(f"- {sentence}")
+            if len(bullets) >= 5:
+                break
+        if len(bullets) >= 5:
+            break
+
+    if len(bullets) < 3:
+        fallback = [
+            "- Panorama dos pontos clinicos centrais do capitulo.",
+            "- Condutas principais e criterios de decisao descritos no texto.",
+            "- Alertas de seguranca e aplicacoes praticas para a APS.",
+        ]
+        bullets.extend(fallback[: 3 - len(bullets)])
+
+    return bullets[:5]
+
+
+def _insert_summary_box_near_start(body_text: str) -> str:
+    """Insere um unico box de resumo logo apos o titulo inicial (ou no topo)."""
+    lines = (body_text or "").splitlines()
+    insert_at = 0
+
+    for i, line in enumerate(lines):
+        if not line.strip():
+            continue
+        insert_at = i + 1 if _is_heading_candidate(line.strip()) else i
+        break
+
+    bullets = _generate_summary_bullets_from_body(body_text)
+    summary_block = [BOX_RESUMO_TAG, *bullets, ""]
+
+    new_lines = lines[:insert_at] + summary_block + lines[insert_at:]
+    return "\n".join(new_lines).strip()
+
+
+def enforce_box_policy(ai_text: str, chapter_name: str = "") -> str:
+    """
+    Enforce de boxes:
+    - Exatamente 1 [BOX_RESUMO] no inicio do capitulo (insere se faltar).
+    - Limite de [BOX_RECOMENDACAO] e [BOX_ATENCAO] para evitar excesso.
+    """
+    if not ai_text or not ai_text.strip():
+        return ai_text
+
+    body_text, index_block = _split_index_block(ai_text)
+    lines = body_text.splitlines()
+
+    resumo_count = 0
+    recommendation_count = 0
+    attention_count = 0
+    filtered_lines: list[str] = []
+
+    for line in lines:
+        current = line
+
+        if BOX_RESUMO_TAG in current:
+            if resumo_count >= 1:
+                current = current.replace(BOX_RESUMO_TAG, "").strip()
+            else:
+                resumo_count += 1
+
+        if BOX_RECOMENDACAO_TAG in current:
+            if recommendation_count >= MAX_RECOMMENDATION_BOXES:
+                current = current.replace(BOX_RECOMENDACAO_TAG, "").strip()
+            else:
+                recommendation_count += 1
+
+        if BOX_ATENCAO_TAG in current:
+            if attention_count >= MAX_ATTENTION_BOXES:
+                current = current.replace(BOX_ATENCAO_TAG, "").strip()
+            else:
+                attention_count += 1
+
+        filtered_lines.append(current)
+
+    filtered_body = "\n".join(filtered_lines).strip()
+
+    if resumo_count == 0:
+        filtered_body = _insert_summary_box_near_start(filtered_body)
+
+    if "[DADOS_INDICE]" in (ai_text or ""):
+        logger.debug(
+            f"[Box DEBUG] Politica de boxes aplicada em '{chapter_name or 'capitulo'}': "
+            f"resumo={max(resumo_count, 1)}, recomendacao={min(recommendation_count, MAX_RECOMMENDATION_BOXES)}, "
+            f"atencao={min(attention_count, MAX_ATTENTION_BOXES)}"
+        )
+        return f"{filtered_body}\n\n[DADOS_INDICE]\n{index_block}".strip()
+
+    logger.debug(
+        f"[Box DEBUG] Politica de boxes aplicada em '{chapter_name or 'capitulo'}': "
+        f"resumo={max(resumo_count, 1)}, recomendacao={min(recommendation_count, MAX_RECOMMENDATION_BOXES)}, "
+        f"atencao={min(attention_count, MAX_ATTENTION_BOXES)}"
+    )
+    return filtered_body
+
+
+def ensure_mandatory_summary_box(ai_text: str, chapter_name: str = "") -> str:
+    """Garantia final: todo capítulo precisa conter exatamente um [BOX_RESUMO]."""
+    if not ai_text or not ai_text.strip():
+        fallback_text = _insert_summary_box_near_start("")
+        logger.warning(
+            f"[Box] Capítulo vazio em '{chapter_name or 'capitulo'}'; "
+            "inserindo box de resumo padrão para manter regra obrigatória."
+        )
+        return fallback_text
+
+    body_text, index_block = _split_index_block(ai_text)
+    count = body_text.count(BOX_RESUMO_TAG)
+
+    if count == 1:
+        return ai_text
+
+    logger.warning(
+        f"[Box] Ajuste de garantia em '{chapter_name or 'capitulo'}': "
+        f"BOX_RESUMO detectados={count}. Reaplicando política obrigatória."
+    )
+
+    rebuilt = enforce_box_policy(ai_text, chapter_name=chapter_name)
+    rebuilt_body, rebuilt_index = _split_index_block(rebuilt)
+    rebuilt_count = rebuilt_body.count(BOX_RESUMO_TAG)
+
+    if rebuilt_count == 0:
+        rebuilt_body = _insert_summary_box_near_start(rebuilt_body)
+        rebuilt_count = rebuilt_body.count(BOX_RESUMO_TAG)
+
+    if rebuilt_count > 1:
+        seen = 0
+        dedup_lines: list[str] = []
+        for line in rebuilt_body.splitlines():
+            current = line
+            if BOX_RESUMO_TAG in current:
+                if seen >= 1:
+                    current = current.replace(BOX_RESUMO_TAG, "").strip()
+                else:
+                    seen += 1
+            dedup_lines.append(current)
+        rebuilt_body = "\n".join(dedup_lines).strip()
+
+    if "[DADOS_INDICE]" in rebuilt:
+        return f"{rebuilt_body}\n\n[DADOS_INDICE]\n{rebuilt_index}".strip()
+    return rebuilt_body
+
+
+def _extract_chapter_title_from_text(text: str, chapter_name: str = "") -> str:
+    """Obtém um título de capítulo confiável a partir do texto final."""
+    for line in (text or "").splitlines():
+        clean = _strip_box_tags_only(line).strip()
+        if not clean:
+            continue
+        if clean.startswith("["):
+            continue
+        if clean.startswith("-"):
+            continue
+        clean = clean.rstrip(".:;!? ")
+        if len(clean) < 4:
+            continue
+        return clean
+
+    fallback_name = chapter_name or "Capítulo"
+    fallback_name = os.path.splitext(fallback_name)[0].replace("_", " ").strip()
+    return fallback_name or "Capítulo"
+
+
+def _extract_subtopics_from_text(text: str, chapter_title: str, min_items: int = 3, max_items: int = 5) -> list[str]:
+    """Extrai subtópicos por heurística para fallback de índice quando a IA falha."""
+    subtopics: list[str] = []
+    seen: set[str] = set()
+
+    for line in (text or "").splitlines():
+        clean = _strip_box_tags_only(line).strip()
+        if not clean or clean.startswith("["):
+            continue
+        if clean.startswith("-"):
+            continue
+        candidate = clean.rstrip(".:;!? ")
+        if candidate.lower() == chapter_title.lower():
+            continue
+        if not _is_heading_candidate(candidate):
+            continue
+        key = candidate.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        subtopics.append(candidate)
+        if len(subtopics) >= max_items:
+            break
+
+    if len(subtopics) < min_items:
+        defaults = [
+            "Contexto clínico",
+            "Aplicação prática",
+            "Pontos de atenção",
+            "Condutas recomendadas",
+            "Resumo para decisão clínica",
+        ]
+        for topic in defaults:
+            if topic.lower() == chapter_title.lower():
+                continue
+            if topic.lower() in seen:
+                continue
+            subtopics.append(topic)
+            seen.add(topic.lower())
+            if len(subtopics) >= min_items:
+                break
+
+    return subtopics[:max_items]
+
+
+def _build_index_prompt(chapter_text: str, chapter_name: str = "") -> str:
+    """Prompt dedicado para gerar apenas metadados de índice em JSON estrito."""
+    return f"""
+Extraia metadados de índice do capítulo abaixo.
+
+REGRAS OBRIGATÓRIAS:
+- Retorne SOMENTE um JSON válido.
+- JSON com exatamente duas chaves: titulo_capitulo (string) e subtopicos (array de 3 a 5 strings).
+- Não inclua markdown, comentários ou texto fora do JSON.
+- Não invente temas fora do capítulo.
+
+CAPÍTULO (nome de arquivo de origem: {chapter_name or 'capitulo'}):
+{chapter_text}
+"""
+
+
+def _parse_index_json(raw_text: str) -> Optional[dict[str, Any]]:
+    """Tenta extrair JSON de índice mesmo que a resposta venha com ruído."""
+    if not raw_text:
+        return None
+
+    candidate = raw_text.strip()
+    fence_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', candidate, flags=re.DOTALL)
+    if fence_match:
+        candidate = fence_match.group(1).strip()
+    else:
+        obj_match = re.search(r'(\{.*\})', candidate, flags=re.DOTALL)
+        if obj_match:
+            candidate = obj_match.group(1).strip()
+
+    try:
+        parsed = json.loads(candidate)
+    except Exception:
+        return None
+
+    if not isinstance(parsed, dict):
+        return None
+    if "titulo_capitulo" not in parsed or "subtopicos" not in parsed:
+        return None
+    if not isinstance(parsed.get("titulo_capitulo"), str):
+        return None
+    if not isinstance(parsed.get("subtopicos"), list):
+        return None
+
+    cleaned_subtopics = [str(x).strip() for x in parsed["subtopicos"] if str(x).strip()]
+    parsed["titulo_capitulo"] = parsed["titulo_capitulo"].strip()
+    parsed["subtopicos"] = cleaned_subtopics
+    return parsed
+
+
+def _build_index_metadata(
+    client: Groq,
+    model_name: str,
+    system_instruction: str,
+    final_text: str,
+    chapter_name: str = "",
+) -> dict[str, Any]:
+    """Gera metadados de índice em etapa dedicada, com fallback determinístico."""
+    body_text, _ = _split_text_before_references(final_text)
+    title_fallback = _extract_chapter_title_from_text(body_text, chapter_name=chapter_name)
+    subtopics_fallback = _extract_subtopics_from_text(body_text, title_fallback)
+    fallback_data = {
+        "titulo_capitulo": title_fallback,
+        "subtopicos": subtopics_fallback,
+        "_source": "fallback",
+    }
+
+    try:
+        index_prompt = _build_index_prompt(body_text, chapter_name=chapter_name)
+        raw_index = _generate_with_groq(
+            client,
+            model_name,
+            system_instruction,
+            index_prompt,
+            0.1,
+        )
+        parsed = _parse_index_json(raw_index)
+        if not parsed:
+            logger.warning(f"[Indice] JSON inválido na etapa dedicada em '{chapter_name or 'capítulo'}'; usando fallback")
+            return fallback_data
+
+        title = parsed.get("titulo_capitulo") or title_fallback
+        subtopics = parsed.get("subtopicos") or []
+        subtopics = [s for s in subtopics if isinstance(s, str) and s.strip()]
+
+        if len(subtopics) < 3:
+            subtopics = _extract_subtopics_from_text(body_text, title)
+        if len(subtopics) > 5:
+            subtopics = subtopics[:5]
+
+        return {
+            "titulo_capitulo": str(title).strip() or title_fallback,
+            "subtopicos": subtopics,
+            "_source": "ai",
+        }
+    except Exception as e:
+        logger.warning(
+            f"[Indice] Falha na etapa dedicada de índice em '{chapter_name or 'capítulo'}': {e}. "
+            "Aplicando fallback determinístico."
+        )
+        return fallback_data
+
+
+def append_index_metadata(final_text: str, index_data: dict[str, Any]) -> str:
+    """Anexa o bloco [DADOS_INDICE] de forma determinística no final do capítulo."""
+    if not final_text or not final_text.strip():
+        return final_text
+
+    body, _existing = _split_index_block(final_text)
+    payload = {
+        "titulo_capitulo": index_data.get("titulo_capitulo", "Capítulo"),
+        "subtopicos": index_data.get("subtopicos", []),
+    }
+    json_block = json.dumps(payload, ensure_ascii=False, indent=2)
+    return f"{body}\n\n[DADOS_INDICE]\n{json_block}".strip()
+
+
 def _build_chapter_prompt(tagged_text: str, previous_summaries: str) -> str:
     """Constrói prompt principal do capítulo com placeholders de citação imutáveis."""
     return f"""
@@ -343,15 +740,9 @@ INSTRUÇÕES GERAIS DE CONSERVAÇÃO:
 INSTRUÇÕES DE FORMATAÇÃO E ESTRUTURA:
 1. Reescreva o texto de forma uniforme baseando-se estritamente no STYLE_GUIDE.
 2. Estruture o texto principal utilizando marcações de Títulos (H1) e Subtítulos (H2) curtos e claros em linhas isoladas. Eles devem obrigatoriamente estar SEM pontuação final (como pontos ou dois-pontos) para que o formatador DOCX consiga capturá-los e aplicar os estilos de cabeçalho.
-3. Insira as seguintes tags no texto, onde for mais apropriado:
-   - [BOX_RESUMO]: Logo após o título do capítulo, extraia de 3 a 5 tópicos cruciais e insira a tag [BOX_RESUMO] seguida do texto "PONTOS IMPORTANTES", estruturando os dados em bullet points curtos e diretos. Evite parágrafos longos dentro deste box.
-   - [BOX_RECOMENDACAO]: Utilize para destacar intervenções clínicas importantes ou condutas recomendadas.
-   - [BOX_ATENCAO]: Utilize para destacar riscos, contraindicações ou alertas clínicos cruciais.
-   - [SUGESTAO_EDICAO]: Utilize caso encontre inconsistências técnicas ou mudanças significativas e informe claramente o que precisa ser verificado ou validado pelo autor original.
-4. O box [BOX_RESUMO] deve conter apenas 3 a 5 bullet points curtos com as mensagens principais do capítulo. Esta é a única parte do texto que pode ser menor; o restante do capítulo deve manter o tamanho original e todas as informações relevantes.
-5. CITAÇÕES E REFERÊNCIAS: Mantenha rigorosamente a mesma numeração e formato (seja sobrescrito ¹, ², ou colchetes [1]) que vieram no texto original. NÃO tente reordenar, NÃO renumere e NÃO altere referências.
-6. Não insira asteriscos (*), hashtags (#) ou outras marcas de markdown no texto final. O texto deve estar limpo e pronto para formatação.
-7. Ao final de tudo, adicione a tag [DADOS_INDICE] seguida de um JSON estrito contendo duas chaves: 'titulo_capitulo' (o título definitivo do texto lido) e 'subtopicos' (uma lista de strings com os 3 a 5 principais tópicos abordados no capítulo).
+3. CITAÇÕES E REFERÊNCIAS: Mantenha rigorosamente a mesma numeração e formato (seja sobrescrito ¹, ², ou colchetes [1]) que vieram no texto original. NÃO tente reordenar, NÃO renumere e NÃO altere referências.
+4. Não insira asteriscos (*), hashtags (#) ou outras marcas de markdown no texto final. O texto deve estar limpo e pronto para formatação.
+5. NÃO produza JSON, metadados ou blocos [DADOS_INDICE]. Essa etapa será feita separadamente pelo sistema.
 
 *** REGRAS ABSOLUTAS PARA CITAÇÕES E REFERÊNCIAS BIBLIOGRÁFICAS ***
 - PROIBIDO ALTERAR NÚMEROS: Você NÃO DEVE, sob nenhuma hipótese, reordenar, renomear ou alterar os números das citações sobrescritas no meio do texto.
@@ -383,6 +774,32 @@ CONTEXTO NARRATIVO (resumo dos capítulos anteriores):
 
 PARÁGRAFO:
 {tagged_paragraph}
+"""
+
+
+def _build_cohesion_prompt(tagged_text: str, previous_summaries: str) -> str:
+    """Prompt de ajuste global de coesão com alterações mínimas e conservadoras."""
+    return f"""
+Revise o capítulo completo abaixo com foco EXCLUSIVO em coesão textual e consistência interna.
+
+OBJETIVO:
+- Melhorar fluidez entre parágrafos e subtítulos.
+- Ajustar conectores, pequenas redundâncias e encadeamento lógico.
+- Manter terminologia consistente ao longo do capítulo.
+
+REGRAS OBRIGATÓRIAS:
+- Faça mudanças mínimas (modo conservador).
+- NÃO resuma e NÃO reduza conteúdo técnico.
+- NÃO adicionar novos fatos clínicos nem remover informações.
+- Preserve TODOS os placeholders [TAG_CIT_X] exatamente (mesma quantidade e ordem).
+- NÃO inserir bibliografia, markdown ou JSON.
+- Retorne apenas o texto revisado do capítulo.
+
+CONTEXTO DOS CAPÍTULOS ANTERIORES:
+{previous_summaries if previous_summaries else "Sem contexto anterior."}
+
+CAPÍTULO:
+{tagged_text}
 """
 
 
@@ -773,7 +1190,8 @@ def process_chapter_text(
         f"bloqueio_citacoes={'ON' if strict_citation_lock else 'OFF'})"
     )
 
-    chapter_body_text, _original_references = _split_text_before_references(chapter_text)
+    chapter_body_text, original_references = _split_text_before_references(chapter_text)
+    normalized_original_references = _normalize_manual_references_text(original_references)
     source_citation_sig = _citation_signature(chapter_body_text)
     source_citation_count = len(_extract_citation_token_sequence(chapter_body_text))
     tagged_text, placeholder_to_token = tokenize_citations_for_llm(
@@ -781,17 +1199,25 @@ def process_chapter_text(
         chapter_name=chapter_name,
     )
     normalized_manual_references = _normalize_manual_references_text(manual_references_text)
+    effective_references = normalized_manual_references or normalized_original_references
+    references_source = (
+        "manual"
+        if normalized_manual_references
+        else ("auto-extraidas-do-texto" if normalized_original_references else "nenhuma")
+    )
     cache_input = (
         f"{CITATION_PIPELINE_VERSION}\n"
         f"MODE:{'PARAGRAPH' if strict_paragraph_mode else 'CHAPTER'}\n"
         f"BODY:\n{tagged_text}\n"
-        f"MANUAL_REFS:\n{normalized_manual_references}"
+        f"EFFECTIVE_REFS:\n{effective_references}"
     )
     cache_fingerprint = hashlib.md5(cache_input.encode("utf-8")).hexdigest()[:12]
     logger.debug(
         f"[Pipeline DEBUG] Entrada capítulo='{chapter_name or 'capítulo'}': "
         f"corpo_chars={len(chapter_body_text)}, placeholders={len(placeholder_to_token)}, "
+        f"refs_auto_chars={len(normalized_original_references)}, "
         f"refs_manuais_chars={len(normalized_manual_references)}, cache_fp={cache_fingerprint}, "
+        f"refs_fonte={references_source}, refs_efetivas_chars={len(effective_references)}, "
         f"cit_sig_in={source_citation_sig}, cit_count_in={source_citation_count}, "
         f"ph_sig_in={_placeholder_signature(tagged_text)}"
     )
@@ -818,6 +1244,10 @@ def process_chapter_text(
         cached_result = cache_get(cache_input, selected_model)
         if cached_result:
             logger.info("✓ Resultado recuperado do cache")
+            logger.info(
+                f"[Resumo Pipeline] capítulo='{chapter_name or 'capítulo'}' | origem=cache | "
+                f"modelo={selected_model} | coesao=cache | indice=cache"
+            )
             logger.debug(
                 f"[Pipeline DEBUG] Cache hit em '{chapter_name or 'capítulo'}' com {selected_model}; "
                 "etapas de IA foram puladas nesta execução"
@@ -829,6 +1259,8 @@ def process_chapter_text(
             
             for attempt in range(AI_MAX_RETRIES):
                 try:
+                    corrective_placeholders_used = False
+                    cohesion_stage_status = "nao-aplicada"
                     logger.debug(f"Tentativa {attempt + 1}/{AI_MAX_RETRIES}")
                     if strict_paragraph_mode:
                         logger.info("Modo estrito por parágrafos ativado")
@@ -881,6 +1313,7 @@ def process_chapter_text(
                         )
                         if _placeholders_preserved(tagged_text, corrected_text):
                             result_text = corrected_text
+                            corrective_placeholders_used = True
                             logger.debug("[Refs DEBUG] Tentativa corretiva restaurou os placeholders com sucesso")
                         else:
                             fail_msg = (
@@ -900,10 +1333,52 @@ def process_chapter_text(
                                 raise APIException("Bloqueio duro de citações: placeholders não preservados após tentativa corretiva")
                             result_text = tagged_text
 
+                    # Etapa obrigatória e conservadora de coesão global do capítulo.
+                    cohesion_prompt = _build_cohesion_prompt(result_text, previous_summaries)
+                    cohesion_text = _generate_with_groq(
+                        client,
+                        selected_model,
+                        system_instruction,
+                        cohesion_prompt,
+                        0.2,
+                    ).strip()
+                    if _placeholders_preserved(result_text, cohesion_text):
+                        result_text = cohesion_text
+                        cohesion_stage_status = "ok"
+                        logger.debug("[Coesao DEBUG] Ajuste global de coesão aplicado com sucesso")
+                    else:
+                        cohesion_stage_status = "fallback-seguranca"
+                        logger.warning(
+                            f"[Coesao] Ajuste global alterou placeholders em '{chapter_name or 'capítulo'}'; "
+                            "mantendo versão anterior para segurança."
+                        )
+                        logger.debug(
+                            "[Coesao DEBUG] Diferença de placeholders na etapa de coesão: "
+                            + _summarize_placeholder_diff(result_text, cohesion_text)
+                        )
+
                     logger.debug("[Pipeline DEBUG] Restaurando placeholders para citações originais")
                     result_text = restore_citations_from_placeholders(result_text, placeholder_to_token)
-                    logger.debug("[Pipeline DEBUG] Anexando referências manuais ao resultado final")
-                    result_text = append_manual_references(result_text, normalized_manual_references)
+                    logger.debug("[Pipeline DEBUG] Aplicando política automática de boxes")
+                    result_text = enforce_box_policy(result_text, chapter_name=chapter_name)
+                    logger.debug("[Pipeline DEBUG] Validando obrigatoriedade do BOX_RESUMO")
+                    result_text = ensure_mandatory_summary_box(result_text, chapter_name=chapter_name)
+                    logger.debug(
+                        f"[Pipeline DEBUG] Anexando referências ao resultado final (fonte={references_source})"
+                    )
+                    result_text = append_manual_references(result_text, effective_references)
+
+                    logger.debug("[Pipeline DEBUG] Gerando metadados de índice em etapa dedicada")
+                    index_data = _build_index_metadata(
+                        client,
+                        selected_model,
+                        system_instruction,
+                        result_text,
+                        chapter_name=chapter_name,
+                    )
+                    index_source = index_data.get("_source", "desconhecido")
+                    result_text = append_index_metadata(result_text, index_data)
+
                     final_body_text, _final_references = _split_text_before_references(result_text)
                     final_citation_sig = _citation_signature(final_body_text)
                     final_citation_count = len(_extract_citation_token_sequence(final_body_text))
@@ -923,6 +1398,11 @@ def process_chapter_text(
                     logger.debug(
                         f"[Pipeline DEBUG] Auditoria citações: sig_in={source_citation_sig}, "
                         f"sig_out={final_citation_sig}, count_in={source_citation_count}, count_out={final_citation_count}"
+                    )
+                    logger.info(
+                        f"[Resumo Pipeline] capítulo='{chapter_name or 'capítulo'}' | "
+                        f"modelo={selected_model} | revisao={'ok+corretiva' if corrective_placeholders_used else 'ok'} | "
+                        f"coesao={cohesion_stage_status} | indice={index_source} | refs={references_source}"
                     )
                     
                     # Salva em cache para uso futuro

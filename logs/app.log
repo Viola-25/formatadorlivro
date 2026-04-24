@@ -1,62 +1,33 @@
-2026-04-22 19:24:40,072 - BookFormatter - INFO - Log reiniciado para novo capítulo: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-22 19:24:40,073 - BookFormatter - INFO - Processando arquivo: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-22 19:24:40,073 - BookFormatter - DEBUG - Status atualizado para Apoio Matricial na Atenção Primária à Saúde.docx: Em Processamento
-2026-04-22 19:24:40,077 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-22_192440.json
-2026-04-22 19:24:40,078 - BookFormatter - DEBUG - Backup antigo removido: progresso_2026-04-22_191515.json
-2026-04-22 19:24:40,078 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-22 19:24:40,078 - BookFormatter - DEBUG - Progresso salvo com sucesso
-2026-04-22 19:24:40,080 - BookFormatter - DEBUG - Arquivo salvo temporariamente: temp\Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-22 19:24:40,080 - BookFormatter - INFO - Extraindo texto de: temp\Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-22 19:24:40,109 - BookFormatter - DEBUG - Texto extraído com sucesso (15389 caracteres)
-2026-04-22 19:24:40,109 - BookFormatter - DEBUG - Lendo resumos anteriores de: progresso.json
-2026-04-22 19:24:40,111 - BookFormatter - INFO - Resumos anteriores agregados: 0 capítulo(s)
-2026-04-22 19:24:40,112 - BookFormatter - INFO - Enviando para IA: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-22 19:24:40,112 - BookFormatter - DEBUG - [Pipeline DEBUG] Apoio Matricial na Atenção Primária à Saúde.docx: refs_manuais_chars=3370, modo=PARÁGRAFOS, bloqueio_citacoes=ON
-2026-04-22 19:24:40,669 - BookFormatter - INFO - [Pipeline] Início do capítulo 'Apoio Matricial na Atenção Primária à Saúde.docx' (modo=PARÁGRAFOS, bloqueio_citacoes=ON)
-2026-04-22 19:24:40,674 - BookFormatter - DEBUG - [Refs DEBUG] Cabeçalho de referências detectado na linha 29: 'REFERÊNCIAS '
-2026-04-22 19:24:40,677 - BookFormatter - DEBUG - [Refs DEBUG] Tokenização de citações em 'Apoio Matricial na Atenção Primária à Saúde.docx': 18 marcador(es) [TAG_CIT_X]
-2026-04-22 19:24:40,677 - BookFormatter - DEBUG - [Refs DEBUG] Preview placeholders (até 5): [('[TAG_CIT_1]', '²'), ('[TAG_CIT_2]', '6'), ('[TAG_CIT_3]', '³'), ('[TAG_CIT_4]', '³'), ('[TAG_CIT_5]', '11')]
-2026-04-22 19:24:40,677 - BookFormatter - DEBUG - [Pipeline DEBUG] Entrada capítulo='Apoio Matricial na Atenção Primária à Saúde.docx': corpo_chars=12004, placeholders=18, refs_manuais_chars=3370, cache_fp=67c3884f6dea, cit_sig_in=eabf3a03c027, cit_count_in=18, ph_sig_in=705b31c3d4f8
-2026-04-22 19:24:40,677 - BookFormatter - DEBUG - [Pipeline DEBUG] Provider=groq; modelos configurados=['llama-3.3-70b-versatile', 'llama-3.1-8b-instant']
-2026-04-22 19:24:40,677 - BookFormatter - INFO - ============================================================
-2026-04-22 19:24:40,677 - BookFormatter - INFO - Iniciando processamento de capítulo com IA
-2026-04-22 19:24:40,677 - BookFormatter - INFO - ============================================================
-2026-04-22 19:24:40,678 - BookFormatter - INFO - Tentando modelo: llama-3.3-70b-versatile
-2026-04-22 19:24:40,678 - BookFormatter - INFO - Verificando cache para este capítulo...
-2026-04-22 19:24:40,678 - BookFormatter - DEBUG - Cache miss para 67c3884f6dea89d651a1ea024204417d_llama-3.3-70b-versatile
-2026-04-22 19:24:40,678 - BookFormatter - DEBUG - Tentativa 1/2
-2026-04-22 19:24:40,678 - BookFormatter - INFO - Modo estrito por parágrafos ativado
-2026-04-22 19:24:40,678 - BookFormatter - DEBUG - [Pipeline DEBUG] 'Apoio Matricial na Atenção Primária à Saúde.docx' em modo estrito por parágrafos: 2 bloco(s)
-2026-04-22 19:24:42,958 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 1 de 'Apoio Matricial na Atenção Primária à Saúde.docx'. Aplicando fallback para preservar citação.
-2026-04-22 19:24:42,959 - BookFormatter - DEBUG - [Refs DEBUG] Diferença de placeholders no parágrafo 1: esperados=18, recebidos=13, faltando=[('14', 1), ('15', 1), ('16', 1), ('17', 1), ('18', 1)], extras=[], ordem_igual=False
-2026-04-22 19:24:42,959 - BookFormatter - DEBUG - [Pipeline DEBUG] Estatísticas parágrafos: total=2, reescritos=0, fallback=1, vazios=1
-2026-04-22 19:24:42,959 - BookFormatter - DEBUG - [Pipeline DEBUG] Restaurando placeholders para citações originais
-2026-04-22 19:24:42,960 - BookFormatter - DEBUG - [Pipeline DEBUG] Anexando referências manuais ao resultado final
-2026-04-22 19:24:42,960 - BookFormatter - DEBUG - [Refs DEBUG] Referências manuais anexadas ao final do capítulo
-2026-04-22 19:24:42,964 - BookFormatter - DEBUG - [Refs DEBUG] Cabeçalho de referências detectado na linha 28: 'REFERÊNCIAS'
-2026-04-22 19:24:42,966 - BookFormatter - DEBUG - [Pipeline DEBUG] Saída final de 'Apoio Matricial na Atenção Primária à Saúde.docx': 15386 caracteres
-2026-04-22 19:24:42,966 - BookFormatter - DEBUG - [Pipeline DEBUG] Auditoria citações: sig_in=eabf3a03c027, sig_out=eabf3a03c027, count_in=18, count_out=18
-2026-04-22 19:24:42,968 - BookFormatter - DEBUG - Cache salvo para 67c3884f6dea89d651a1ea024204417d_llama-3.3-70b-versatile
-2026-04-22 19:24:42,968 - BookFormatter - INFO - ✓ Sucesso usando llama-3.3-70b-versatile!
-2026-04-22 19:24:42,968 - BookFormatter - INFO - ============================================================
-2026-04-22 19:24:42,968 - BookFormatter - DEBUG - IA retornou 15386 caracteres
-2026-04-22 19:24:42,969 - BookFormatter - DEBUG - Texto da IA salvo: temp\Apoio Matricial na Atenção Primária à Saúde.docx.ai.txt
-2026-04-22 19:24:42,970 - BookFormatter - INFO - Gerando DOCX: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-22 19:24:42,971 - BookFormatter - INFO - Gerando DOCX formatado para: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-22 19:24:42,991 - BookFormatter - DEBUG - Configurações de página definidas
-2026-04-22 19:24:43,017 - BookFormatter - DEBUG - Seção REFERÊNCIAS detectada: alterando para layout de 1 coluna
-2026-04-22 19:24:43,044 - BookFormatter - INFO - Documento DOCX salvo: Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
-2026-04-22 19:24:43,046 - BookFormatter - INFO - DOCX gerado: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
-2026-04-22 19:24:43,046 - BookFormatter - INFO - Convertendo para PDF: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-22 19:24:43,047 - BookFormatter - INFO - Convertendo para PDF: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.docx
-2026-04-22 19:24:50,374 - BookFormatter - INFO - PDF gerado com sucesso: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_Revisado.pdf
-2026-04-22 19:24:50,374 - BookFormatter - INFO - PDF gerado com sucesso
-2026-04-22 19:24:50,376 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-22_192450.json
-2026-04-22 19:24:50,377 - BookFormatter - DEBUG - Backup antigo removido: progresso_2026-04-22_191523.json
-2026-04-22 19:24:50,377 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-22 19:24:50,378 - BookFormatter - DEBUG - Progresso salvo com sucesso
-2026-04-22 19:24:50,379 - BookFormatter - INFO - ✓ Capítulo processado com sucesso: Apoio Matricial na Atenção Primária à Saúde.docx
-2026-04-22 19:24:50,379 - BookFormatter - INFO - Processamento concluído: 1 sucesso(s), 0 erro(s)
-2026-04-22 19:24:59,234 - BookFormatter - DEBUG - Carregando progresso...
-2026-04-22 19:24:59,238 - BookFormatter - DEBUG - Arquivo de progresso validado
-2026-04-22 19:24:59,282 - BookFormatter - DEBUG - Gerenciador de índice inicializado
+2026-04-24 17:20:27,885 - BookFormatter - INFO - Log reiniciado para novo capítulo: Apoio Matricial na Atenção Primária à Saúde - V2 (Livro Medicina Emergência).docx
+2026-04-24 17:20:27,886 - BookFormatter - INFO - Processando arquivo: Apoio Matricial na Atenção Primária à Saúde - V2 (Livro Medicina Emergência).docx
+2026-04-24 17:20:27,889 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-24_172027.json
+2026-04-24 17:20:27,892 - BookFormatter - INFO - Extraindo texto de: temp\Apoio Matricial na Atenção Primária à Saúde - V2 (Livro Medicina Emergência).docx
+2026-04-24 17:20:28,071 - BookFormatter - INFO - Resumos anteriores agregados: 0 capítulo(s)
+2026-04-24 17:20:28,071 - BookFormatter - INFO - Enviando para IA: Apoio Matricial na Atenção Primária à Saúde - V2 (Livro Medicina Emergência).docx
+2026-04-24 17:20:28,690 - BookFormatter - INFO - [Pipeline] Início do capítulo 'Apoio Matricial na Atenção Primária à Saúde - V2 (Livro Medicina Emergência).docx' (modo=PARÁGRAFOS, bloqueio_citacoes=ON)
+2026-04-24 17:20:28,698 - BookFormatter - INFO - ============================================================
+2026-04-24 17:20:28,698 - BookFormatter - INFO - Iniciando processamento de capítulo com IA
+2026-04-24 17:20:28,698 - BookFormatter - INFO - ============================================================
+2026-04-24 17:20:28,698 - BookFormatter - INFO - Tentando modelo: llama-3.3-70b-versatile
+2026-04-24 17:20:28,698 - BookFormatter - INFO - Verificando cache para este capítulo...
+2026-04-24 17:20:28,698 - BookFormatter - INFO - Modo estrito por parágrafos ativado
+2026-04-24 17:20:30,892 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 1 de 'Apoio Matricial na Atenção Primária à Saúde - V2 (Livro Medicina Emergência).docx'. Aplicando fallback para preservar citação.
+2026-04-24 17:21:03,186 - BookFormatter - INFO - [Resumo Pipeline] capítulo='Apoio Matricial na Atenção Primária à Saúde - V2 (Livro Medicina Emergência).docx' | modelo=llama-3.3-70b-versatile | revisao=ok | coesao=ok | indice=ai | refs=auto-extraidas-do-texto
+2026-04-24 17:21:03,188 - BookFormatter - INFO - ✓ Sucesso usando llama-3.3-70b-versatile!
+2026-04-24 17:21:03,188 - BookFormatter - INFO - ============================================================
+2026-04-24 17:21:03,189 - BookFormatter - INFO - Índice atualizado: Apoio Matricial na Atenção Primária à Saúde com 3 subtópicos
+2026-04-24 17:21:03,191 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-24_172103.json
+2026-04-24 17:21:03,192 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
+2026-04-24 17:21:03,195 - BookFormatter - INFO - Índice processado: Apoio Matricial na Atenção Primária à Saúde
+2026-04-24 17:21:03,197 - BookFormatter - INFO - Gerando DOCX: Apoio Matricial na Atenção Primária à Saúde - V2 (Livro Medicina Emergência).docx
+2026-04-24 17:21:03,197 - BookFormatter - INFO - Gerando DOCX formatado para: Apoio Matricial na Atenção Primária à Saúde - V2 (Livro Medicina Emergência).docx
+2026-04-24 17:21:03,269 - BookFormatter - INFO - Documento DOCX salvo: Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_-_V2_(Livro_Medicina_Emergência)_Revisado.docx
+2026-04-24 17:21:03,270 - BookFormatter - INFO - DOCX gerado: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_-_V2_(Livro_Medicina_Emergência)_Revisado.docx
+2026-04-24 17:21:03,271 - BookFormatter - INFO - Convertendo para PDF: Apoio Matricial na Atenção Primária à Saúde - V2 (Livro Medicina Emergência).docx
+2026-04-24 17:21:03,271 - BookFormatter - INFO - Convertendo para PDF: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_-_V2_(Livro_Medicina_Emergência)_Revisado.docx
+2026-04-24 17:21:10,855 - BookFormatter - INFO - PDF gerado com sucesso: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_-_V2_(Livro_Medicina_Emergência)_Revisado.pdf
+2026-04-24 17:21:10,855 - BookFormatter - INFO - PDF gerado com sucesso
+2026-04-24 17:21:10,857 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-24_172110.json
+2026-04-24 17:21:10,858 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
+2026-04-24 17:21:10,859 - BookFormatter - INFO - ✓ Capítulo processado com sucesso: Apoio Matricial na Atenção Primária à Saúde - V2 (Livro Medicina Emergência).docx
+2026-04-24 17:21:10,860 - BookFormatter - INFO - Processamento concluído: 1 sucesso(s), 0 erro(s)

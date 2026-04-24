@@ -474,29 +474,12 @@ def main():
                 value=False,
                 help="Quando ativado, o capítulo é interrompido se a assinatura/ordem das citações finais divergir do texto original."
             )
-
-            require_references_for_all = st.checkbox(
-                "Bloquear processamento se algum capítulo estiver sem referências",
-                value=False,
-                help="Validação opcional: quando ativada, exige referências preenchidas para todos os capítulos antes de iniciar."
-            )
-
-        manual_references_by_file: Dict[str, str] = {}
         
         if uploaded_files:
             st.info(f"📁 **{len(uploaded_files)} arquivo(s)** carregado(s) e prontos para processamento na fila.")
-
-            st.subheader("2. Cole as Referências por Capítulo")
-            st.caption("Preencha cada capítulo com sua própria seção de referências. O sistema anexará cada bloco ao capítulo correspondente.")
-
-            for file in uploaded_files:
-                field_key = f"refs_{file.name}"
-                manual_references_by_file[file.name] = st.text_area(
-                    f"Referências para: {file.name}",
-                    height=140,
-                    key=field_key,
-                    placeholder="Exemplo:\n1. Autor A...\n2. Autor B..."
-                )
+            st.caption(
+                "As referências serão detectadas automaticamente no final de cada capítulo enviado."
+            )
             
             # Registrar pendentes silenciosamente
             for file in uploaded_files:
@@ -506,26 +489,9 @@ def main():
                     
             # Botão de iniciar processamento na tela principal
             if st.button("▶️ Iniciar Processamento Inteligente", type="primary", use_container_width=True):
-                if require_references_for_all:
-                    missing_references = [
-                        file.name for file in uploaded_files
-                        if not manual_references_by_file.get(file.name, "").strip()
-                    ]
-
-                    if missing_references:
-                        logger.warning(
-                            "Processamento bloqueado: capítulos sem referências preenchidas: "
-                            + ", ".join(missing_references)
-                        )
-                        st.error("❌ Processamento bloqueado: preencha as referências dos capítulos abaixo:")
-                        for missing_file in missing_references:
-                            st.markdown(f"- {missing_file}")
-                        st.stop()
-
                 process_files(
                     uploaded_files,
                     api_key,
-                    manual_references_by_file=manual_references_by_file,
                     strict_paragraph_mode=strict_paragraph_mode,
                     strict_citation_lock=strict_citation_lock,
                 )

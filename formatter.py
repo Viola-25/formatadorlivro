@@ -228,8 +228,8 @@ def generate_formatted_docx(ai_text: str, chapter_name: str) -> str:
                 if current_mode == "DEFAULT":
                     doc.add_paragraph("")
                 elif current_mode == "BOX_RESUMO" and current_box_p is not None:
-                    # Preserve o box mas não adicione parágrafos extras vazios
-                    pass
+                    # Linha em branco encerra o box de resumo.
+                    current_mode = "DEFAULT"
                 # Sai de blocos de formatação única (exceto resumo e links) se houver quebra de parágrafo
                 if current_mode in ["BOX_RECOMENDACAO", "BOX_ATENCAO", "SUGESTAO_EDICAO"]:
                     current_mode = "DEFAULT"
@@ -246,8 +246,9 @@ def generate_formatted_docx(ai_text: str, chapter_name: str) -> str:
                 resumo_lines = 0
                 current_box_p = doc.add_paragraph()
                 set_p_border_and_shading(current_box_p, COLOR_BOX_BG)
+                current_box_p.alignment = WD_ALIGN_PARAGRAPH.LEFT
                 
-                run_title = current_box_p.add_run("PONTOS IMPORTANTES\n")
+                run_title = current_box_p.add_run("PONTOS IMPORTANTES")
                 run_title.bold = True
                 run_title.font.name = 'Arial'
                 run_title.font.size = Pt(BOX_FONT_SIZE)
@@ -257,7 +258,7 @@ def generate_formatted_docx(ai_text: str, chapter_name: str) -> str:
                     if not clean_text.startswith("-"):
                         clean_text = f"- {clean_text}"
                     if resumo_lines < 5:
-                        run_text = current_box_p.add_run(clean_text)
+                        run_text = current_box_p.add_run("\n" + clean_text)
                         run_text.font.name = 'Arial'
                         run_text.font.size = Pt(BOX_FONT_SIZE)
                         resumo_lines += 1
@@ -317,14 +318,17 @@ def generate_formatted_docx(ai_text: str, chapter_name: str) -> str:
                         continue
                     if clean_text.upper() == "PONTOS IMPORTANTES":
                         continue
-                    if not clean_text.startswith("-"):
-                        clean_text = f"- {clean_text}"
-                    if resumo_lines < 5:
+                    if resumo_lines >= 5:
+                        # Limite do box atingido: volta ao fluxo normal para não perder conteúdo.
+                        current_mode = "DEFAULT"
+                    else:
+                        if not clean_text.startswith("-"):
+                            clean_text = f"- {clean_text}"
                         run_text = current_box_p.add_run("\n" + clean_text)
                         run_text.font.name = 'Arial'
                         run_text.font.size = Pt(BOX_FONT_SIZE)
                         resumo_lines += 1
-                    continue
+                        continue
             
             elif current_mode in ["BOX_RECOMENDACAO", "BOX_ATENCAO"]:
                 p = doc.add_paragraph()
@@ -383,21 +387,27 @@ def generate_formatted_docx(ai_text: str, chapter_name: str) -> str:
             else:
                 # Modo DEFAULT (Texto padrão e Títulos)
                 clean_for_check = sanitize_text_line(stripped_line)
+                normalized_heading = clean_for_check.rstrip(".:;!? ").strip()
+                word_count = len(normalized_heading.split()) if normalized_heading else 0
                 
                 # Heurística para detecção de títulos
                 is_heading = (
-                    len(clean_for_check) > 0 
-                    and len(clean_for_check) < 60 
-                    and not clean_for_check.endswith('.') 
-                    and not clean_for_check.endswith(':')
+                    len(normalized_heading) > 0
+                    and len(normalized_heading) < 60
                     and not clean_for_check.startswith('-')
                     and not clean_for_check.startswith('*')
                     and not clean_for_check.startswith('[')
+                    and ',' not in clean_for_check
+                    and (
+                        (not clean_for_check.endswith('.') and not clean_for_check.endswith(':'))
+                        or (clean_for_check.endswith('.') and word_count <= 6 and normalized_heading[0].isupper())
+                        or (clean_for_check.endswith(':') and word_count <= 6)
+                    )
                 )
                 
                 if is_heading:
                     # Limpa marcadores Markdown (#) caso a IA gere, e define como título
-                    heading_text = clean_for_check.lstrip('#').strip()
+                    heading_text = normalized_heading.lstrip('#').strip()
                     doc.add_heading(heading_text, level=1)
                 else:
                     doc.add_paragraph(clean_for_check)
