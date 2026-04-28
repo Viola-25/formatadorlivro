@@ -61,6 +61,38 @@ pip install -r requirements.txt
 pip install -r requirements.txt
 ```
 
+### Dependência Groq (IA)
+
+O módulo `groq` fornece o cliente para a API usada pelo pipeline de IA. Se ao executar o app você obtiver:
+
+```
+ModuleNotFoundError: No module named 'groq'
+```
+
+Siga uma das opções abaixo:
+
+- Instale todas as dependências na sua virtualenv:
+
+```powershell
+\.venv\Scripts\python -m pip install -r requirements.txt
+```
+
+- Ou instale apenas o pacote `groq`:
+
+```powershell
+\.venv\Scripts\python -m pip install groq
+```
+
+- Se `groq` for um pacote privado ou precisar de uma fonte específica, ajuste o `requirements.txt` para apontar para a URL do repositório (ex: `git+https://...#egg=groq`).
+
+- Para desenvolvimento local rápido (não recomendado em produção), crie um stub mínimo `groq.py` na raiz do projeto com um `class Groq:` que lance um erro descritivo ao ser instanciada.
+
+Depois de instalar, rode o app:
+
+```powershell
+\.venv\Scripts\streamlit run app.py
+```
+
 ### Configurar Variáveis de Ambiente (Opcional)
 ```bash
 export LOG_LEVEL=INFO

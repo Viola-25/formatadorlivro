@@ -491,40 +491,145 @@ class GerenciadorIndice:
             logger.error(f"Erro ao importar estrutura: {e}")
             return False
     
-    def gerar_relatorio(self) -> str:
+    def gerar_relatorio(self, status_capitulos: Optional[Dict[str, Any]] = None) -> str:
         """
-        Gera um relatório textual da estrutura.
+        Gera um relatório textual da estrutura com status dos capítulos.
+        
+        Args:
+            status_capitulos: Dicionário com status de cada capítulo (opcional)
         
         Returns:
             String com o relatório formatado
         """
-        report = ["=" * 60, "RELATÓRIO DO ÍNDICE DO LIVRO", "=" * 60, ""]
+        report = ["=" * 70, "RELATÓRIO DO ÍNDICE DO LIVRO", "=" * 70, ""]
         
         # Total de capítulos
         indice = self.estado.get("indice_capitulos", {})
-        report.append(f"Total de capítulos: {len(indice)}\n")
+        status_capitulos = status_capitulos or {}
+        
+        # Contadores
+        total_caps = len(indice)
+        concluidos = sum(1 for f in status_capitulos.values() if isinstance(f, dict) and f.get("status") == "Concluído")
+        pendentes = sum(1 for f in status_capitulos.values() if isinstance(f, dict) and f.get("status") == "Pendente")
+        erros = sum(1 for f in status_capitulos.values() if isinstance(f, dict) and "Erro" in f.get("status", ""))
+        
+        report.append(f"Total de capítulos: {total_caps}")
+        report.append(f"  ✅ Processados: {concluidos}")
+        report.append(f"  ⏳ Pendentes: {pendentes}")
+        report.append(f"  ❌ Falhados: {erros}\n")
         
         # Seções
         secoes = self.estado.get("secoes", {})
         if secoes:
             report.append("SEÇÕES E CAPÍTULOS:")
-            report.append("-" * 60)
+            report.append("-" * 70)
             for secao_nome, capitulos_secao in secoes.items():
                 report.append(f"\n[{secao_nome}]")
                 for i, titulo in enumerate(capitulos_secao, 1):
                     subtopicos = indice.get(titulo, [])
-                    report.append(f"  {i}. {titulo}")
+                    status_info = status_capitulos.get(titulo, {})
+                    status_emoji = self._get_status_emoji(status_info)
+                    report.append(f"  {i}. {status_emoji} {titulo}")
                     for subtopic in subtopicos:
                         report.append(f"     • {subtopic}")
         else:
             report.append("CAPÍTULOS (sem seção):")
-            report.append("-" * 60)
+            report.append("-" * 70)
             ordem = self.estado.get("ordem_capitulos", list(indice.keys()))
             for i, titulo in enumerate(ordem, 1):
                 subtopicos = indice.get(titulo, [])
-                report.append(f"\n{i}. {titulo}")
+                status_info = status_capitulos.get(titulo, {})
+                status_emoji = self._get_status_emoji(status_info)
+                report.append(f"\n{i}. {status_emoji} {titulo}")
                 for subtopic in subtopicos:
                     report.append(f"   • {subtopic}")
         
-        report.append("\n" + "=" * 60)
+        report.append("\n" + "=" * 70)
         return "\n".join(report)
+    
+    def _get_status_emoji(self, status_info: Any) -> str:
+        """
+        Retorna o emoji correspondente ao status do capítulo.
+        
+        Args:
+            status_info: Informação de status (pode ser string ou dict)
+        
+        Returns:
+            String com emoji do status
+        """
+        if not status_info:
+            return "⚪"  # Não processado
+        
+        if isinstance(status_info, dict):
+            status = status_info.get("status", "")
+            if status == "Concluído":
+                return "✅"
+            elif status == "Pendente":
+                return "⏳"
+            elif "Erro" in status:
+                return "❌"
+        elif isinstance(status_info, str):
+            if status_info == "Concluído":
+                return "✅"
+            elif status_info == "Pendente":
+                return "⏳"
+            elif "Erro" in status_info:
+                return "❌"
+            elif status_info == "Em Processamento":
+                return "⚙️"
+        
+        return "⚪"
+    
+    def gerar_relatorio_estruturado(self, status_capitulos: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Retorna a estrutura do índice com status em formato estruturado (JSON-compatível).
+        
+        Args:
+            status_capitulos: Dicionário com status de cada capítulo
+        
+        Returns:
+            Dicionário com a estrutura e status
+        """
+        indice = self.estado.get("indice_capitulos", {})
+        secoes = self.estado.get("secoes", {})
+        ordem = self.estado.get("ordem_capitulos", list(indice.keys()))
+        status_capitulos = status_capitulos or {}
+        
+        estrutura = {
+            "resumo": {
+                "total": len(indice),
+                "concluidos": sum(1 for f in status_capitulos.values() if isinstance(f, dict) and f.get("status") == "Concluído"),
+                "pendentes": sum(1 for f in status_capitulos.values() if isinstance(f, dict) and f.get("status") == "Pendente"),
+                "falhados": sum(1 for f in status_capitulos.values() if isinstance(f, dict) and "Erro" in f.get("status", "")),
+            },
+            "secoes": {},
+            "capitulos": {}
+        }
+        
+        # Processa seções se existirem
+        if secoes:
+            for secao_nome, capitulos_secao in secoes.items():
+                estrutura["secoes"][secao_nome] = []
+                for titulo in capitulos_secao:
+                    status_info = status_capitulos.get(titulo, {})
+                    emoji = self._get_status_emoji(status_info)
+                    subtopicos = indice.get(titulo, [])
+                    estrutura["secoes"][secao_nome].append({
+                        "titulo": titulo,
+                        "status_emoji": emoji,
+                        "status": status_info.get("status", "") if isinstance(status_info, dict) else status_info,
+                        "subtopicos": subtopicos
+                    })
+        else:
+            # Sem seções, usa ordem
+            for titulo in ordem:
+                status_info = status_capitulos.get(titulo, {})
+                emoji = self._get_status_emoji(status_info)
+                subtopicos = indice.get(titulo, [])
+                estrutura["capitulos"][titulo] = {
+                    "status_emoji": emoji,
+                    "status": status_info.get("status", "") if isinstance(status_info, dict) else status_info,
+                    "subtopicos": subtopicos
+                }
+        
+        return estrutura

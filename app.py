@@ -16,6 +16,14 @@ from backup import create_backup, restore_backup, list_backups, validate_progres
 from validator import validate_index_data, InvalidIndexData
 from exceptions import DocumentParseError, APIException
 from index_manager import GerenciadorIndice
+from utils import (
+    delete_chapter_safe,
+    validate_api_key,
+    standardize_chapter_status,
+    get_chapter_safe_filename,
+    get_processing_stats
+)
+from utils import bulk_delete_chapters, bulk_move_chapters, reprocess_chapters, identify_chapter_title_from_filename
 
 
 def load_groq_api_key_from_file(file_path: str) -> str:
@@ -113,19 +121,26 @@ def save_progress(state: Dict[str, Any]) -> bool:
         return False
 
 
-def update_chapter_status(state: Dict[str, Any], chapter_name: str, status: str) -> bool:
+def update_chapter_status(state: Dict[str, Any], chapter_name: str, status: str, resumo: str = "", titulo_indice: str = "") -> bool:
     """
-    Atualiza o status de um capítulo específico.
+    Atualiza o status de um capítulo específico. Sempre armazena em formato dict.
     
     Args:
         state: Estado atual
         chapter_name: Nome do arquivo/capítulo
-        status: Novo status
+        status: Novo status (string)
+        resumo: Resumo opcional do capítulo
+        titulo_indice: Título no índice (opcional)
         
     Returns:
         True se atualizado com sucesso
     """
-    state["status_capitulos"][chapter_name] = status
+    # Sempre armazena em formato dict padronizado
+    state["status_capitulos"][chapter_name] = {
+        "status": status,
+        "resumo": resumo,
+        "titulo_indice": titulo_indice
+    }
     logger.debug(f"Status atualizado para {chapter_name}: {status}")
     return save_progress(state)
 
@@ -314,6 +329,22 @@ def process_files(
                 f.write(ai_text)
             logger.debug(f"Texto da IA salvo: {ai_text_path}")
 
+            # Sugestão de alocação no índice: tente usar a IA para mapear para um título existente
+            try:
+                candidates = list(st.session_state.gerenciador_indice.estado.get("indice_capitulos", {}).keys())
+            except Exception:
+                candidates = list(st.session_state.app_state.get("indice_capitulos", {}).keys())
+
+            suggested_title = None
+            try:
+                from utils import suggest_index_title_with_ai
+                suggested_title = suggest_index_title_with_ai(ai_text, file.name, candidates, api_key=api_key)
+            except Exception:
+                suggested_title = None
+
+            if suggested_title:
+                title = suggested_title
+
             # 5. Gerar arquivo DOCX formatado
             status_text.info(f"**Aplicando Guia de Estilos e formatando DOCX:** `{file.name}`")
             try:
@@ -343,12 +374,13 @@ def process_files(
                 st.warning(f"⚠️ Não foi possível converter para PDF. O docx2pdf requer Microsoft Word. Erro: {e}")
             
             # Atualizar status de conclusão
-            st.session_state.app_state["status_capitulos"][file.name] = {
-                "status": "Concluído",
-                "resumo": f"Capítulo revisado e formatado com sucesso.",
-                "titulo_indice": title
-            }
-            save_progress(st.session_state.app_state)
+            update_chapter_status(
+                st.session_state.app_state,
+                file.name,
+                "Concluído",
+                resumo="Capítulo revisado e formatado com sucesso.",
+                titulo_indice=title
+            )
             successful_count += 1
             logger.info(f"✓ Capítulo processado com sucesso: {file.name}")
             
@@ -391,6 +423,12 @@ def main():
     # Inicializa e carrega o estado na session_state
     if 'app_state' not in st.session_state:
         st.session_state.app_state = load_progress()
+    
+    # Inicializa o gerenciador de índice (necessário antes de usar em qualquer aba)
+    if 'gerenciador_indice' not in st.session_state:
+        st.session_state.gerenciador_indice = GerenciadorIndice()
+    # Disponibiliza uma referência local ao gerenciador para uso nas abas
+    gerenciador = st.session_state.gerenciador_indice
     
     # Configura a barra lateral
     with st.sidebar:
@@ -459,7 +497,7 @@ def main():
             st.subheader("1. Selecione os Arquivos Brutos")
             uploaded_files = st.file_uploader(
                 "Faça o upload dos documentos originais (.docx, .txt) para iniciar.", 
-                type=['docx', 'txt', 'png', 'jpg'], 
+                type=['docx', 'txt'], 
                 accept_multiple_files=True
             )
 
@@ -485,16 +523,35 @@ def main():
             for file in uploaded_files:
                 # Adiciona ao rastreamento com status Pendente
                 if file.name not in st.session_state.app_state["status_capitulos"]:
-                    update_chapter_status(st.session_state.app_state, file.name, "Pendente")
+                    # Tenta identificar título do índice a partir do nome do arquivo
+                    matched_title = None
+                    try:
+                        matched_title = identify_chapter_title_from_filename(
+                            st.session_state.app_state,
+                            file.name,
+                            gerenciador=st.session_state.get('gerenciador_indice')
+                        )
+                    except Exception:
+                        matched_title = None
+
+                    if matched_title:
+                        update_chapter_status(st.session_state.app_state, file.name, "Pendente", titulo_indice=matched_title)
+                    else:
+                        update_chapter_status(st.session_state.app_state, file.name, "Pendente")
                     
             # Botão de iniciar processamento na tela principal
             if st.button("▶️ Iniciar Processamento Inteligente", type="primary", use_container_width=True):
-                process_files(
-                    uploaded_files,
-                    api_key,
-                    strict_paragraph_mode=strict_paragraph_mode,
-                    strict_citation_lock=strict_citation_lock,
-                )
+                # Validar API key antes de processar
+                is_valid, msg = validate_api_key(api_key)
+                if not is_valid:
+                    st.error(msg)
+                else:
+                    process_files(
+                        uploaded_files,
+                        api_key,
+                        strict_paragraph_mode=strict_paragraph_mode,
+                        strict_citation_lock=strict_citation_lock,
+                    )
             
         # Exibição do estado atual do projeto
         st.divider()
@@ -507,11 +564,19 @@ def main():
                 st.subheader("📑 Status dos Capítulos")
                 status_data = st.session_state.app_state.get("status_capitulos", {})
                 if status_data:
+                    # Contadores
+                    concluidos = sum(1 for s in status_data.values() if s.get("status") == "Concluído")
+                    pendentes = sum(1 for s in status_data.values() if s.get("status") == "Pendente")
+                    erros = sum(1 for s in status_data.values() if "Erro" in s.get("status", ""))
+                    
+                    st.markdown(f"**✅ Processados:** {concluidos}")
+                    st.markdown(f"**⏳ Pendentes:** {pendentes}")
+                    st.markdown(f"**❌ Falhados:** {erros}")
+                    st.markdown("---")
+                    
                     for cap, status in status_data.items():
-                        if isinstance(status, dict):
-                            st.markdown(f"📄 **{cap}** <br/> └ Status: `{status.get('status')}`", unsafe_allow_html=True)
-                        else:
-                            st.markdown(f"📄 **{cap}** <br/> └ Status: `{status}`", unsafe_allow_html=True)
+                        emoji = gerenciador._get_status_emoji(status)
+                        st.markdown(f"{emoji} **{cap}**")
                 else:
                     st.info("Nenhum capítulo na fila ou processado ainda.")
                 
@@ -519,12 +584,22 @@ def main():
             with st.container(border=True):
                 st.subheader("🗂️ Índice Estruturado da Obra")
                 indice_data = st.session_state.app_state.get("indice_capitulos", {})
+                status_data = st.session_state.app_state.get("status_capitulos", {})
+                
                 if indice_data:
-                    for title, subtopics in indice_data.items():
-                        st.markdown(f"**📘 {title}**")
-                        for topic in subtopics:
-                            st.markdown(f"- {topic}")
-                        st.markdown("<br/>", unsafe_allow_html=True)
+                    ordem = st.session_state.app_state.get("ordem_capitulos", list(indice_data.keys()))
+                    for idx, title in enumerate(ordem, 1):
+                        subtopics = indice_data.get(title, [])
+                        status_info = status_data.get(title, {})
+                        emoji = gerenciador._get_status_emoji(status_info)
+                        
+                        st.markdown(f"**{idx}. {emoji} {title}**")
+                        if subtopics:
+                            for topic in subtopics[:5]:  # Mostra apenas os 5 primeiros
+                                st.markdown(f"   - {topic}")
+                            if len(subtopics) > 5:
+                                st.markdown(f"   - ... e {len(subtopics) - 5} tópicos mais")
+                        st.markdown("")  # Espaço
                 else:
                     st.info("O índice será gerado automaticamente após o processamento.")
                 
@@ -566,41 +641,153 @@ def main():
         '''
         st.markdown(preview_html, unsafe_allow_html=True)
         
-    with aba3:
-        st.header("Gerenciar e Editar Capítulos")
-        
-        status_data = st.session_state.app_state.get("status_capitulos", {})
-        if not status_data:
-            st.info("Nenhum capítulo processado para gerenciar. Por favor, processe arquivos na aba 'Processador' primeiro.")
-        else:
-            selected_chapter = st.selectbox("📌 Selecione um capítulo para revisar", list(status_data.keys()))
+        with aba3:
+            st.header("Gerenciar e Editar Capítulos")
+
+            status_data = st.session_state.app_state.get("status_capitulos", {})
+            if not status_data:
+                st.info("Nenhum capítulo processado para gerenciar. Por favor, processe arquivos na aba 'Processador' primeiro.")
+            else:
+                # Filtros: busca por nome, status e seção
+                st.markdown("**Filtros de Capítulos**")
+                col_f1, col_f2, col_f3 = st.columns([2, 1, 1])
+                with col_f1:
+                    name_search = st.text_input("Buscar por nome", value="", placeholder="Parte do nome do arquivo")
+                with col_f2:
+                    status_filter = st.selectbox("Filtrar por status", options=["Todos", "Concluído", "Pendente", "Em Processamento", "Erro", "Sem Status"], index=0)
+                with col_f3:
+                    secoes_all = st.session_state.gerenciador_indice.obter_secoes() if 'gerenciador_indice' in st.session_state else []
+                    sec_options = ["Todas"] + secoes_all
+                    section_filter = st.selectbox("Filtrar por seção", options=sec_options, index=0)
+
+                # Construir lista de capítulos a partir do estado
+                all_chapters = list(status_data.keys())
+                filtered_chapters = []
+                secoes_map = st.session_state.gerenciador_indice.estado.get("secoes", {}) if 'gerenciador_indice' in st.session_state else {}
+
+                for ch in all_chapters:
+                    info = status_data.get(ch, {}) or {}
+                    st_status = info.get("status", "")
+
+                    # name filter
+                    if name_search and name_search.lower() not in ch.lower():
+                        continue
+
+                    # status filter
+                    if status_filter != "Todos":
+                        if status_filter == "Erro":
+                            if "Erro" not in st_status:
+                                continue
+                        elif status_filter == "Sem Status":
+                            if st_status:
+                                continue
+                        else:
+                            if st_status != status_filter:
+                                continue
+
+                    # section filter
+                    if section_filter != "Todas":
+                        # find chapter title in secoes_map values
+                        in_section = False
+                        for sec_name, caps in secoes_map.items():
+                            if ch in caps and sec_name == section_filter:
+                                in_section = True
+                                break
+                        if not in_section:
+                            continue
+
+                    filtered_chapters.append(ch)
+
+                if not filtered_chapters:
+                    st.info("Nenhum capítulo corresponde aos filtros selecionados.")
+                else:
+                    selected_chapter = st.selectbox("📌 Selecione um capítulo para revisar", filtered_chapters)
             
             col_btn1, col_btn2 = st.columns(2)
             with col_btn1:
                 if st.button("🗑️ Excluir Capítulo", use_container_width=True):
-                    info = st.session_state.app_state["status_capitulos"][selected_chapter]
-                    if isinstance(info, dict) and "titulo_indice" in info:
-                        idx_title = info["titulo_indice"]
-                        if "indice_capitulos" in st.session_state.app_state and idx_title in st.session_state.app_state["indice_capitulos"]:
-                            del st.session_state.app_state["indice_capitulos"][idx_title]
-                    
-                    del st.session_state.app_state["status_capitulos"][selected_chapter]
+                    success, msg = delete_chapter_safe(
+                        st.session_state.app_state,
+                        selected_chapter,
+                        gerenciador=st.session_state.gerenciador_indice
+                    )
                     save_progress(st.session_state.app_state)
                     
-                    base_name = os.path.splitext(selected_chapter)[0] if '.' in selected_chapter else selected_chapter
-                    safe_chapter_name = re.sub(r'[\\/*?:"<>|]', "", base_name).replace(" ", "_")
-                    
-                    docx_path = os.path.join(OUTPUT_DIR, f"Capitulo_{safe_chapter_name}_Revisado.docx")
-                    pdf_path = docx_path.replace(".docx", ".pdf")
-                    ai_txt_path = os.path.join(TEMP_DIR, f"{selected_chapter}.ai.txt")
-                    
-                    for p in [docx_path, pdf_path, ai_txt_path]:
-                        if os.path.exists(p):
-                            os.remove(p)
-                            
-                    st.toast(f"Capítulo {selected_chapter} excluído do histórico!", icon="🗑️")
-                    time.sleep(1.5)
-                    st.rerun()
+                    if success:
+                        st.toast(msg, icon="🗑️")
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error(msg)
+
+            # ===== Operações em Lote =====
+            if filtered_chapters:
+                multi_selected = st.multiselect("🔁 Selecionar múltiplos capítulos para ações em lote", filtered_chapters, key="bulk_select")
+                if multi_selected:
+                    st.markdown("**Ações em Lote**")
+                    bcol1, bcol2, bcol3 = st.columns(3)
+                    with bcol1:
+                        if st.button("🗑️ Excluir Selecionados", use_container_width=True):
+                            confirm = st.checkbox("Confirmar exclusão em lote", key="confirm_bulk_delete")
+                            if confirm:
+                                ger = st.session_state.get("gerenciador_indice", None)
+                                results = bulk_delete_chapters(st.session_state.app_state, multi_selected, gerenciador=ger)
+                                save_progress(st.session_state.app_state)
+                                for ch, (ok, m) in results.items():
+                                    if ok:
+                                        st.success(m)
+                                    else:
+                                        st.error(f"{ch}: {m}")
+                                time.sleep(1)
+                                st.rerun()
+                    with bcol2:
+                        sections = []
+                        if 'gerenciador_indice' in st.session_state:
+                            sections = st.session_state.gerenciador_indice.obter_secoes()
+                        target_section = st.selectbox("Mover para seção", options=["-- Selecionar --"] + sections, key="bulk_move_section")
+                        if st.button("🔀 Mover Selecionados", use_container_width=True):
+                            if target_section and target_section != "-- Selecionar --":
+                                ger = st.session_state.gerenciador_indice
+                                status_caps = st.session_state.app_state.get("status_capitulos", {})
+                                titles = []
+                                for fn in multi_selected:
+                                    info = status_caps.get(fn, {}) or {}
+                                    titulo = info.get("titulo_indice") or fn
+                                    titles.append(titulo)
+                                move_results = bulk_move_chapters(ger, titles, target_section)
+                                st.session_state.gerenciador_indice = ger
+                                for t, ok in move_results.items():
+                                    if ok:
+                                        st.success(f"{t} → {target_section}")
+                                    else:
+                                        st.error(f"Falha ao mover {t}")
+                                time.sleep(1)
+                                st.rerun()
+                    with bcol3:
+                        if st.button("🔁 Reprocessar Selecionados", use_container_width=True):
+                            is_valid, msg = validate_api_key(api_key)
+                            if not is_valid:
+                                st.error(msg)
+                            else:
+                                re_results = reprocess_chapters(multi_selected, api_key, process_files, temp_dir=TEMP_DIR)
+                                # Construir relatório resumido
+                                lines = []
+                                for ch, res in re_results.items():
+                                    if isinstance(res, str) and ("Pronto" in res or "Pronto para" in res):
+                                        lines.append(f"OK: {ch} — {res}")
+                                    else:
+                                        lines.append(f"FAIL: {ch} — {res}")
+
+                                report_text = "\n".join(lines)
+                                if report_text:
+                                    st.subheader("Relatório de Reprocessamento")
+                                    st.code(report_text, language="text")
+                                    st.download_button("📥 Baixar Relatório de Reprocessamento", data=report_text, file_name="reprocess_report.txt", mime="text/plain")
+                                else:
+                                    st.info("Nenhum item reprocessado.")
+
+                                time.sleep(1)
+                                st.rerun()
             
             st.divider()
             st.subheader("📝 Edição Manual do Texto (Pré-formatação)")
@@ -637,10 +824,7 @@ def main():
         st.header("📚 Organizar e Reordenar Índice")
         st.markdown("Organize seus capítulos em seções/especialidades, reordene e manage a estrutura do livro.")
         
-        # Inicializa o gerenciador de índice
-        if 'gerenciador_indice' not in st.session_state:
-            st.session_state.gerenciador_indice = GerenciadorIndice()
-        
+        # Usa o gerenciador já inicializado na main
         gerenciador = st.session_state.gerenciador_indice
         
         # Abas secundárias dentro da aba4
@@ -649,55 +833,76 @@ def main():
         # ========== SUBTAB 1: Reordenar Capítulos ==========
         with subtab1:
             st.subheader("✴️ Reordenar Capítulos")
-            
+
             capitulos = list(gerenciador.estado.get("indice_capitulos", {}).keys())
-            
+
             if not capitulos:
                 st.info("Nenhum capítulo no índice para reordenar.")
             else:
                 st.info(f"Total de capítulos: **{len(capitulos)}**")
-                
+
+                # Filtros: busca por nome, status e seção (aplicados à ordem atual)
+                colf1, colf2, colf3 = st.columns([2, 1, 1])
+                with colf1:
+                    reorder_search = st.text_input("Buscar na ordem por nome", value="", placeholder="Parte do título")
+                with colf2:
+                    reorder_status = st.selectbox("Filtrar por status", options=["Todos", "Concluído", "Pendente", "Em Processamento", "Erro", "Sem Status"], index=0, key="reorder_status")
+                with colf3:
+                    reorder_section = st.selectbox("Filtrar por seção", options=["Todas"] + gerenciador.obter_secoes(), index=0, key="reorder_section")
+
                 ordem_atual = gerenciador.estado.get("ordem_capitulos", capitulos)
-                
-                # Exibe a ordem atual com botões para mover
-                st.markdown("**Ordem Atual:**")
-                
-                cols_display = st.columns([3, 1, 1])
-                for idx, titulo in enumerate(ordem_atual):
-                    with cols_display[0]:
-                        st.markdown(f"**{idx + 1}.** {titulo}")
-                    
-                    with cols_display[1]:
-                        if idx > 0:
-                            if st.button("⬆️", key=f"up_{idx}", help="Mover acima"):
-                                gerenciador.mover_capitulo_acima(titulo)
-                                st.session_state.gerenciador_indice = gerenciador
-                                st.rerun()
+                status_caps = st.session_state.app_state.get("status_capitulos", {})
+
+                # Aplica filtros à ordem_atual
+                ordem_filtered = []
+                secoes_map = gerenciador.estado.get("secoes", {})
+                for titulo in ordem_atual:
+                    # search
+                    if reorder_search and reorder_search.lower() not in titulo.lower():
+                        continue
+                    # status
+                    info = status_caps.get(titulo, {}) or {}
+                    st_status = info.get("status", "")
+                    if reorder_status != "Todos":
+                        if reorder_status == "Erro":
+                            if "Erro" not in st_status:
+                                continue
+                        elif reorder_status == "Sem Status":
+                            if st_status:
+                                continue
                         else:
-                            st.write("")
-                    
-                    with cols_display[2]:
-                        if idx < len(ordem_atual) - 1:
-                            if st.button("⬇️", key=f"down_{idx}", help="Mover abaixo"):
-                                gerenciador.mover_capitulo_abaixo(titulo)
-                                st.session_state.gerenciador_indice = gerenciador
-                                st.rerun()
-                        else:
-                            st.write("")
+                            if st_status != reorder_status:
+                                continue
+                    # section
+                    if reorder_section != "Todas":
+                        in_section = False
+                        for sec_name, caps in secoes_map.items():
+                            if titulo in caps and sec_name == reorder_section:
+                                in_section = True
+                                break
+                        if not in_section:
+                            continue
+                    ordem_filtered.append(titulo)
                 
-                st.divider()
+                # Reordenação via multiselect com status emojis
+                st.markdown("**📋 Reordene os capítulos:**")
+                st.caption("💡 Clique e arraste para reordenar, ou use o multiselect para escolher a nova ordem")
                 
-                # Reordenação manual com drag-and-drop simulado
-                st.markdown("**Drag-and-Drop Manual:**")
-                nova_ordem = st.multiselect(
-                    "Clique e arraste para reordenar (ou clique para selecionar a nova ordem)",
-                    options=ordem_atual,
-                    default=ordem_atual,
+                # Cria lista de opções com status emojis
+                opcoes_com_status = [f"{gerenciador._get_status_emoji(status_caps.get(titulo, {}))} {titulo}" for titulo in ordem_atual]
+                
+                nova_ordem_com_status = st.multiselect(
+                    "Selecione e reordene os capítulos:",
+                    options=opcoes_com_status,
+                    default=opcoes_com_status,
                     key="reorder_multiselect"
                 )
                 
-                if st.button("✅ Confirmar Nova Ordem", use_container_width=True):
-                    if nova_ordem:
+                if st.button("✅ Confirmar Nova Ordem", use_container_width=True, type="primary"):
+                    if nova_ordem_com_status and len(nova_ordem_com_status) == len(ordem_atual):
+                        # Remove os emojis para obter os títulos originais
+                        nova_ordem = [titulo for titulo in ordem_atual 
+                                     if any(titulo in opt for opt in nova_ordem_com_status)]
                         if gerenciador.reordenar_capitulos(nova_ordem):
                             st.success("✅ Capítulos reordenados com sucesso!")
                             st.session_state.gerenciador_indice = gerenciador
@@ -705,6 +910,9 @@ def main():
                             st.rerun()
                         else:
                             st.error("❌ Erro ao reordenar capítulos.")
+                    else:
+                        st.warning("⚠️ Selecione todos os capítulos!")
+        
         
         # ========== SUBTAB 2: Gerenciar Seções ==========
         with subtab2:
@@ -763,6 +971,7 @@ def main():
                 st.markdown("**Estrutura de Seções**")
                 
                 secoes_data = gerenciador.obter_capitulos_por_secao()
+                status_caps = st.session_state.app_state.get("status_capitulos", {})
                 
                 if not secoes_data:
                     st.info("Nenhuma seção criada ainda.")
@@ -771,7 +980,8 @@ def main():
                         with st.expander(f"📂 {secao_nome} ({len(capitulos_secao)} capítulo(s))", expanded=False):
                             if capitulos_secao:
                                 for i, cap in enumerate(capitulos_secao, 1):
-                                    st.markdown(f"{i}. **{cap}**")
+                                    emoji = gerenciador._get_status_emoji(status_caps.get(cap, {}))
+                                    st.markdown(f"{i}. {emoji} **{cap}**")
                             else:
                                 st.write("(Nenhum capítulo nesta seção)")
                             
@@ -800,19 +1010,27 @@ def main():
                     st.markdown(f"**Subtópicos:** {', '.join(subtopicos)}")
                 
                 if st.button("🗑️ Deletar Capítulo do Índice", use_container_width=True, type="secondary"):
-                    if gerenciador.deletar_capitulo(capitulo_del):
-                        st.success(f"✅ Capítulo '{capitulo_del}' deletado do índice!")
+                    success, msg = delete_chapter_safe(
+                        st.session_state.app_state,
+                        capitulo_del,
+                        gerenciador=gerenciador
+                    )
+                    
+                    if success:
+                        save_progress(st.session_state.app_state)
+                        st.success(msg)
                         st.session_state.gerenciador_indice = gerenciador
                         time.sleep(1)
                         st.rerun()
                     else:
-                        st.error("❌ Erro ao deletar capítulo.")
+                        st.error(msg)
         
         # ========== SUBTAB 4: Relatório ==========
         with subtab4:
             st.subheader("📊 Relatório da Estrutura")
             
-            relatorio = gerenciador.gerar_relatorio()
+            status_caps = st.session_state.app_state.get("status_capitulos", {})
+            relatorio = gerenciador.gerar_relatorio(status_capitulos=status_caps)
             st.code(relatorio, language="text")
             
             # Download do relatório
@@ -857,6 +1075,146 @@ def main():
                                 st.error("❌ Erro ao importar estrutura.")
                     except json.JSONDecodeError:
                         st.error("❌ Arquivo JSON inválido.")
+
+        # ========== SUBTAB 5: Outputs & Logs ==========
+        with st.container():
+            st.header("📁 Outputs & Logs")
+            col_out, col_logs = st.columns([1, 1])
+
+            with col_out:
+                st.subheader("Arquivos de Saída")
+                # Controles: abrir pasta, pesquisa e filtro por tipo
+                open_btn = st.button("Abrir pasta no Explorer")
+                search_name = st.text_input("Pesquisar arquivos (parte do nome)", value="")
+                file_type = st.selectbox("Filtrar por tipo", options=["Todos", "docx", "pdf", "ai.txt"], index=0)
+
+                if open_btn:
+                    try:
+                        if os.path.exists(OUTPUT_DIR):
+                            # No Windows, abre o Explorer na pasta
+                            try:
+                                os.startfile(OUTPUT_DIR)
+                            except Exception:
+                                # Cross-platform fallback
+                                import subprocess, sys
+                                if sys.platform == 'darwin':
+                                    subprocess.Popen(["open", OUTPUT_DIR])
+                                else:
+                                    subprocess.Popen(["xdg-open", OUTPUT_DIR])
+                        else:
+                            st.error("Pasta de saída não existe.")
+                    except Exception as e:
+                        st.error(f"Não foi possível abrir a pasta: {e}")
+
+                if os.path.exists(OUTPUT_DIR):
+                    all_files = [f for f in os.listdir(OUTPUT_DIR) if not f.startswith('.')]
+                    # Aplica filtros
+                    files_filtered = []
+                    for f in all_files:
+                        if search_name and search_name.lower() not in f.lower():
+                            continue
+                        if file_type != "Todos":
+                            if not f.lower().endswith(file_type):
+                                continue
+                        files_filtered.append(f)
+
+                    if files_filtered:
+                        # ordenar por modificação (mais recentes primeiro)
+                        files_filtered.sort(key=lambda x: os.path.getmtime(os.path.join(OUTPUT_DIR, x)), reverse=True)
+                        for fname in files_filtered:
+                            fpath = os.path.join(OUTPUT_DIR, fname)
+                            mtime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getmtime(fpath)))
+                            size_kb = os.path.getsize(fpath)//1024
+                            cols = st.columns([6, 1, 1, 1])
+                            with cols[0]:
+                                st.markdown(f"**{fname}**  — {size_kb} KB  — {mtime}")
+                            with cols[1]:
+                                with open(fpath, "rb") as fh:
+                                    st.download_button(label="🔽", data=fh, file_name=fname, key=f"dl_{fname}")
+                            with cols[2]:
+                                if st.button("🗑️", key=f"del_out_{fname}"):
+                                    try:
+                                        os.remove(fpath)
+                                        st.success(f"Arquivo {fname} removido")
+                                        st.experimental_rerun()
+                                    except Exception as e:
+                                        st.error(f"Erro ao remover {fname}: {e}")
+                            with cols[3]:
+                                if st.button("🔍 Mostrar caminho", key=f"path_{fname}"):
+                                    st.caption(fpath)
+                    else:
+                        st.info("Nenhum arquivo que corresponda aos filtros.")
+                else:
+                    st.info("Pasta de saída não encontrada.")
+
+                st.divider()
+                st.subheader("Backups do Progresso")
+                backups = list_backups()
+                if backups:
+                    backup_dir = os.path.join(os.path.dirname(PROGRESS_FILE), "backups")
+                    for b in backups:
+                        filename = b.get('filename')
+                        created = b.get('created', '')
+                        backup_path = os.path.join(backup_dir, filename) if filename else None
+                        size_kb = None
+                        if backup_path and os.path.exists(backup_path):
+                            try:
+                                size_kb = os.path.getsize(backup_path) // 1024
+                            except Exception:
+                                size_kb = None
+
+                        cols = st.columns([6, 1])
+                        with cols[0]:
+                            line = f"{filename} — {created}"
+                            if size_kb is not None:
+                                line += f" — {size_kb} KB"
+                            st.markdown(line)
+
+                        # Restore workflow with explicit confirmation
+                        pending_key = f"pending_restore_{filename}"
+                        confirm_key = f"confirm_restore_{filename}"
+                        with cols[1]:
+                            if not st.session_state.get(pending_key, False):
+                                if st.button("↺ Restaurar", key=f"restore_{filename}"):
+                                    st.session_state[pending_key] = True
+                            else:
+                                st.warning(f"Você está prestes a restaurar '{filename}'. Esta ação sobrescreverá o progresso atual.")
+                                if st.button("CONFIRMAR RESTAURAR", key=confirm_key):
+                                    try:
+                                        restore_backup(filename)
+                                        st.success(f"Backup {filename} restaurado. Recarregue a aplicação.")
+                                        st.session_state[pending_key] = False
+                                    except Exception as e:
+                                        st.error(f"Erro ao restaurar backup: {e}")
+                                        st.session_state[pending_key] = False
+                                if st.button("Cancelar", key=f"cancel_{filename}"):
+                                    st.session_state[pending_key] = False
+                else:
+                    st.info("Nenhum backup encontrado.")
+
+            with col_logs:
+                st.subheader("Logs de Execução")
+                log_path = os.path.join(os.path.dirname(__file__), "logs", "app.log")
+                if os.path.exists(log_path):
+                    try:
+                        with open(log_path, "r", encoding="utf-8") as lf:
+                            lines = lf.read().splitlines()
+                        # Mostra últimas 400 linhas
+                        preview = "\n".join(lines[-400:])
+                        st.code(preview, language="text")
+                        with open(log_path, "rb") as lfbin:
+                            st.download_button("📥 Baixar log completo", data=lfbin, file_name="app.log")
+                        if st.button("🧹 Limpar Log"):
+                            try:
+                                open(log_path, "w", encoding="utf-8").close()
+                                st.success("Log limpo com sucesso")
+                                st.experimental_rerun()
+                            except Exception as e:
+                                st.error(f"Erro ao limpar log: {e}")
+                    except Exception as e:
+                        st.error(f"Erro ao ler log: {e}")
+                else:
+                    st.info("Arquivo de log não encontrado.")
 
 if __name__ == "__main__":
     main()

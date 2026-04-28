@@ -31,3 +31,13 @@
 2026-04-24 17:21:10,858 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
 2026-04-24 17:21:10,859 - BookFormatter - INFO - ✓ Capítulo processado com sucesso: Apoio Matricial na Atenção Primária à Saúde - V2 (Livro Medicina Emergência).docx
 2026-04-24 17:21:10,860 - BookFormatter - INFO - Processamento concluído: 1 sucesso(s), 0 erro(s)
+2026-04-27 22:47:18,031 - BookFormatter - INFO - Índice pré-organizado detectado: C:\Users\marqu\Documents\GitHub\formatadorlivro\INDEX_PREORGANIZADO.md. Mesclando com estado atual...
+2026-04-27 22:47:18,037 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-27_224718.json
+2026-04-27 22:47:18,039 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
+2026-04-27 22:47:18,046 - BookFormatter - INFO - Índice mesclado: 184 capítulo(s) adicionados, 19 seção(ões) novas, 184 entrada(s) adicionadas na ordem.
+2026-04-27 22:47:18,046 - BookFormatter - INFO - Mesclagem do índice pré-organizado concluída.
+2026-04-27 22:48:09,369 - BookFormatter - INFO - Índice pré-organizado detectado: C:\Users\marqu\Documents\GitHub\formatadorlivro\INDEX_PREORGANIZADO.md. Mesclando com estado atual...
+2026-04-27 22:48:09,372 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-27_224809.json
+2026-04-27 22:48:09,376 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
+2026-04-27 22:48:09,380 - BookFormatter - INFO - Índice mesclado: 0 capítulo(s) adicionados, 0 seção(ões) novas, 0 entrada(s) adicionadas na ordem.
+2026-04-27 22:48:09,380 - BookFormatter - INFO - Mesclagem do índice pré-organizado concluída.

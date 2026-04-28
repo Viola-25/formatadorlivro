@@ -7,7 +7,18 @@ import hashlib
 import unicodedata
 from collections import Counter
 from typing import Dict, Any, Optional
-from groq import Groq
+try:
+    from groq import Groq
+except Exception:
+    # For long-term stability, avoid crashing the whole app at import time
+    # if the `groq` package is missing. Instantiating `Groq` will raise
+    # a clear runtime error explaining how to fix the environment.
+    class Groq:
+        def __init__(self, *args, **kwargs):
+            raise RuntimeError(
+                "Dependência 'groq' não encontrada. Instale as dependências do projeto: `pip install -r requirements.txt` "
+                "ou `pip install groq`. Para desenvolvimento rápido, você pode criar um stub local 'groq.py' na raiz do projeto."
+            )
 
 # Importa configurações centralizadas
 from config import (
