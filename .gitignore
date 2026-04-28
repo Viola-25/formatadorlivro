@@ -1,3 +1,25 @@
+# Python virtual env
+.venv/
+venv/
+
+# Cache and backups
+.cache/
+.cache/*
+.cache/backups/
+
+# Build/output
+output/
+temp/
+
+# Logs
+logs/
+
+# VS Code
+.vscode/
+
+# Byte-compiled
+__pycache__/
+*.py[cod]
 # Secrets
 /groq_api_key.txt
 /secrets/

@@ -52,6 +52,18 @@ class GerenciadorIndice:
         """
         self.progress_file = progress_file
         self.estado = self._carregar_estado()
+        # Se existir um índice pré-organizado em Markdown, carregue e mescle
+        try:
+            md_path = os.path.join(os.path.dirname(__file__), "INDEX_PREORGANIZADO.md")
+            if os.path.exists(md_path):
+                logger.info(f"Índice pré-organizado detectado: {md_path}. Mesclando com estado atual...")
+                parsed = self._load_preorganized_index(md_path)
+                if parsed:
+                    self._merge_preorganized_index(parsed)
+                    logger.info("Mesclagem do índice pré-organizado concluída.")
+        except Exception:
+            # Não falhar na inicialização por causa do arquivo de índice
+            logger.debug("Nenhum índice pré-organizado mesclado")
         logger.debug("Gerenciador de índice inicializado")
     
     def _carregar_estado(self) -> Dict[str, Any]:
@@ -336,6 +348,124 @@ class GerenciadorIndice:
             "secoes": self.estado.get("secoes", {}),
             "ordem": self.estado.get("ordem_capitulos", [])
         }
+
+    def _load_preorganized_index(self, path: str) -> Dict[str, Any]:
+        """
+        Lê um arquivo Markdown simples com o índice pré-organizado e retorna
+        uma estrutura básica: {"ordem": [...], "capitulos": {titulo: []}, "secoes": {}}
+        """
+        ordem: List[str] = []
+        capitulos: Dict[str, List[str]] = {}
+        secoes: Dict[str, List[str]] = {}
+
+        with open(path, 'r', encoding='utf-8') as f:
+            current_secao: Optional[str] = None
+            for raw in f:
+                line = raw.strip()
+                if not line:
+                    continue
+
+                # Detecta UNIDADE/VOLUME como seção
+                if line.upper().startswith("UNIDADE") or line.upper().startswith("VOLUME"):
+                    current_secao = line
+                    secoes.setdefault(current_secao, [])
+                    continue
+
+                # Linhas que iniciam com 'Capítulo' são capítulos
+                if line.startswith("Capítulo") or line.lower().startswith("capítulo"):
+                    # Normaliza título
+                    titulo = line
+                    ordem.append(titulo)
+                    capitulos.setdefault(titulo, [])
+                    if current_secao:
+                        secoes.setdefault(current_secao, []).append(titulo)
+                    continue
+
+                # Detecta subcapítulos numerados como 14.2.1. ou linhas como '15.5.1. Dor'
+                if line[0].isdigit() and '.' in line:
+                    # tratar como subtópico simples: anexar ao último capítulo
+                    if ordem:
+                        ultimo = ordem[-1]
+                        capitulos.setdefault(ultimo, []).append(line)
+                    continue
+
+        return {"ordem": ordem, "capitulos": capitulos, "secoes": secoes}
+
+    def _merge_preorganized_index(self, estrutura: Dict[str, Any]) -> None:
+        """
+        Mescla a estrutura pré-organizada com o estado atual sem sobrescrever dados
+        já existentes. Novos capítulos são adicionados e a ordem é atualizada.
+        """
+        indice_atual = self.estado.get("indice_capitulos", {})
+        ordem_atual = self.estado.get("ordem_capitulos", [])
+        secoes_atual = self.estado.get("secoes", {})
+
+        # Adiciona capítulos ausentes
+        added_chapters = 0
+        for titulo, subt in estrutura.get("capitulos", {}).items():
+            if titulo not in indice_atual:
+                indice_atual[titulo] = subt
+                added_chapters += 1
+
+        # Mescla seções: apenas adiciona capítulos às seções
+        added_sections = 0
+        for secao, capitulos in estrutura.get("secoes", {}).items():
+            if secao not in secoes_atual:
+                secoes_atual[secao] = []
+                added_sections += 1
+            for c in capitulos:
+                if c not in secoes_atual[secao]:
+                    secoes_atual[secao].append(c)
+
+        # Atualiza ordem mantendo ordem existente e inserindo novos na posição definida
+        added_to_order = 0
+        for titulo in estrutura.get("ordem", []):
+            if titulo not in ordem_atual:
+                ordem_atual.append(titulo)
+                added_to_order += 1
+
+        self.estado["indice_capitulos"] = indice_atual
+        self.estado["secoes"] = secoes_atual
+        self.estado["ordem_capitulos"] = ordem_atual
+        # Salva estado mesclado
+        self._salvar_estado()
+        logger.info(f"Índice mesclado: {added_chapters} capítulo(s) adicionados, {added_sections} seção(ões) novas, {added_to_order} entrada(s) adicionadas na ordem.")
+
+    def import_from_markdown(self, path: str, force: bool = False) -> bool:
+        """
+        Importa um índice a partir de um arquivo Markdown estruturado.
+
+        Args:
+            path: Caminho para o arquivo Markdown
+            force: Se True, sobrescreve completamente o estado atual; se False, mescla
+
+        Returns:
+            True se importado com sucesso
+        """
+        try:
+            if not os.path.exists(path):
+                logger.warning(f"Arquivo de índice não encontrado: {path}")
+                return False
+
+            estrutura = self._load_preorganized_index(path)
+            if not estrutura:
+                logger.warning("Arquivo de índice vazio ou inválido")
+                return False
+
+            if force:
+                logger.info("Importação forçada do índice: sobrescrevendo estado atual.")
+                # Sobrescreve completamente
+                self.estado["indice_capitulos"] = estrutura.get("capitulos", {})
+                self.estado["secoes"] = estrutura.get("secoes", {})
+                self.estado["ordem_capitulos"] = estrutura.get("ordem", [])
+                return self._salvar_estado()
+            else:
+                logger.info("Importando índice por mesclagem (não destrutiva).")
+                self._merge_preorganized_index(estrutura)
+                return True
+        except Exception as e:
+            logger.error(f"Erro ao importar índice de Markdown: {e}")
+            return False
     
     def importar_estrutura(self, estrutura: Dict[str, Any]) -> bool:
         """
