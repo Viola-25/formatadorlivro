@@ -2,6 +2,7 @@ import docx
 import json
 import os
 import time
+import random
 import re
 import hashlib
 import unicodedata
@@ -1434,8 +1435,22 @@ def process_chapter_text(
                             break
                         
                         if attempt < AI_MAX_RETRIES - 1:
-                            wait_time = AI_RETRY_DELAY * (attempt + 1)
-                            logger.warning(f"Rate limit atingido. Aguardando {wait_time}s...")
+                            # Tentar extrair um tempo sugerido da mensagem de erro (ex: "Please try again in 4.35s")
+                            suggested = None
+                            try:
+                                m = re.search(r"try again in\s*([0-9]+(?:\.[0-9]+)?)s", error_msg, re.IGNORECASE)
+                                if m:
+                                    suggested = float(m.group(1))
+                            except Exception:
+                                suggested = None
+
+                            # Exponential backoff com jitter; use sugestão se presente
+                            base = AI_RETRY_DELAY * (2 ** attempt)
+                            wait_time = max(base, suggested) if suggested else base
+                            # jitter entre 0 e 1 segundo para evitar spikes sincronizados
+                            jitter = random.uniform(0, 1)
+                            wait_time = min(wait_time + jitter, 60)
+                            logger.warning(f"Rate limit atingido. Aguardando {wait_time:.2f}s...")
                             time.sleep(wait_time)
                         else:
                             logger.error(f"Rate limit persistente após {AI_MAX_RETRIES} tentativas")

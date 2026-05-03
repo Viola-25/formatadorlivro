@@ -38,15 +38,33 @@ def create_backup() -> Optional[str]:
     try:
         backup_filename = generate_backup_filename()
         backup_path = os.path.join(BACKUP_DIR, backup_filename)
-        
+        # Garantir que o diretório de backup exista
+        try:
+            os.makedirs(BACKUP_DIR, exist_ok=True)
+        except Exception as mkdir_err:
+            logger.error(f"Falha ao criar diretório de backup '{BACKUP_DIR}': {mkdir_err}")
+            raise
+
+        # Copia o arquivo de progresso para o local de backup
         shutil.copy2(PROGRESS_FILE, backup_path)
-        logger.info(f"Backup criado: {backup_path}")
+        logger.info(f"Backup criado: {os.path.abspath(backup_path)}")
         
         # Remove backups antigos se exceder MAX_BACKUPS
         cleanup_old_backups()
         
         return backup_path
         
+    except FileNotFoundError as e:
+        logger.error(f"Erro ao criar backup - arquivo não encontrado: {e}. PROGRESS_FILE={PROGRESS_FILE}, BACKUP_DIR={BACKUP_DIR}")
+        parent = os.path.dirname(os.path.abspath(backup_path))
+        try:
+            logger.debug(f"Conteúdo do diretório pai ({parent}): {os.listdir(parent)}")
+        except Exception:
+            logger.debug(f"Não foi possível listar o diretório pai: {parent}")
+        raise BackupException(f"Falha ao criar backup: {e}")
+    except OSError as e:
+        logger.error(f"Erro ao criar backup (OS error): {e}. PROGRESS_FILE={PROGRESS_FILE}, BACKUP_DIR={BACKUP_DIR}")
+        raise BackupException(f"Falha ao criar backup: {e}")
     except Exception as e:
         logger.error(f"Erro ao criar backup: {e}")
         raise BackupException(f"Falha ao criar backup: {e}")

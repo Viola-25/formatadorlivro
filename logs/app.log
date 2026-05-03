@@ -1,43 +1,102 @@
-2026-04-24 17:20:27,885 - BookFormatter - INFO - Log reiniciado para novo capítulo: Apoio Matricial na Atenção Primária à Saúde - V2 (Livro Medicina Emergência).docx
-2026-04-24 17:20:27,886 - BookFormatter - INFO - Processando arquivo: Apoio Matricial na Atenção Primária à Saúde - V2 (Livro Medicina Emergência).docx
-2026-04-24 17:20:27,889 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-24_172027.json
-2026-04-24 17:20:27,892 - BookFormatter - INFO - Extraindo texto de: temp\Apoio Matricial na Atenção Primária à Saúde - V2 (Livro Medicina Emergência).docx
-2026-04-24 17:20:28,071 - BookFormatter - INFO - Resumos anteriores agregados: 0 capítulo(s)
-2026-04-24 17:20:28,071 - BookFormatter - INFO - Enviando para IA: Apoio Matricial na Atenção Primária à Saúde - V2 (Livro Medicina Emergência).docx
-2026-04-24 17:20:28,690 - BookFormatter - INFO - [Pipeline] Início do capítulo 'Apoio Matricial na Atenção Primária à Saúde - V2 (Livro Medicina Emergência).docx' (modo=PARÁGRAFOS, bloqueio_citacoes=ON)
-2026-04-24 17:20:28,698 - BookFormatter - INFO - ============================================================
-2026-04-24 17:20:28,698 - BookFormatter - INFO - Iniciando processamento de capítulo com IA
-2026-04-24 17:20:28,698 - BookFormatter - INFO - ============================================================
-2026-04-24 17:20:28,698 - BookFormatter - INFO - Tentando modelo: llama-3.3-70b-versatile
-2026-04-24 17:20:28,698 - BookFormatter - INFO - Verificando cache para este capítulo...
-2026-04-24 17:20:28,698 - BookFormatter - INFO - Modo estrito por parágrafos ativado
-2026-04-24 17:20:30,892 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 1 de 'Apoio Matricial na Atenção Primária à Saúde - V2 (Livro Medicina Emergência).docx'. Aplicando fallback para preservar citação.
-2026-04-24 17:21:03,186 - BookFormatter - INFO - [Resumo Pipeline] capítulo='Apoio Matricial na Atenção Primária à Saúde - V2 (Livro Medicina Emergência).docx' | modelo=llama-3.3-70b-versatile | revisao=ok | coesao=ok | indice=ai | refs=auto-extraidas-do-texto
-2026-04-24 17:21:03,188 - BookFormatter - INFO - ✓ Sucesso usando llama-3.3-70b-versatile!
-2026-04-24 17:21:03,188 - BookFormatter - INFO - ============================================================
-2026-04-24 17:21:03,189 - BookFormatter - INFO - Índice atualizado: Apoio Matricial na Atenção Primária à Saúde com 3 subtópicos
-2026-04-24 17:21:03,191 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-24_172103.json
-2026-04-24 17:21:03,192 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-24 17:21:03,195 - BookFormatter - INFO - Índice processado: Apoio Matricial na Atenção Primária à Saúde
-2026-04-24 17:21:03,197 - BookFormatter - INFO - Gerando DOCX: Apoio Matricial na Atenção Primária à Saúde - V2 (Livro Medicina Emergência).docx
-2026-04-24 17:21:03,197 - BookFormatter - INFO - Gerando DOCX formatado para: Apoio Matricial na Atenção Primária à Saúde - V2 (Livro Medicina Emergência).docx
-2026-04-24 17:21:03,269 - BookFormatter - INFO - Documento DOCX salvo: Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_-_V2_(Livro_Medicina_Emergência)_Revisado.docx
-2026-04-24 17:21:03,270 - BookFormatter - INFO - DOCX gerado: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_-_V2_(Livro_Medicina_Emergência)_Revisado.docx
-2026-04-24 17:21:03,271 - BookFormatter - INFO - Convertendo para PDF: Apoio Matricial na Atenção Primária à Saúde - V2 (Livro Medicina Emergência).docx
-2026-04-24 17:21:03,271 - BookFormatter - INFO - Convertendo para PDF: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_-_V2_(Livro_Medicina_Emergência)_Revisado.docx
-2026-04-24 17:21:10,855 - BookFormatter - INFO - PDF gerado com sucesso: output\Capitulo_Apoio_Matricial_na_Atenção_Primária_à_Saúde_-_V2_(Livro_Medicina_Emergência)_Revisado.pdf
-2026-04-24 17:21:10,855 - BookFormatter - INFO - PDF gerado com sucesso
-2026-04-24 17:21:10,857 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-24_172110.json
-2026-04-24 17:21:10,858 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-24 17:21:10,859 - BookFormatter - INFO - ✓ Capítulo processado com sucesso: Apoio Matricial na Atenção Primária à Saúde - V2 (Livro Medicina Emergência).docx
-2026-04-24 17:21:10,860 - BookFormatter - INFO - Processamento concluído: 1 sucesso(s), 0 erro(s)
-2026-04-27 22:47:18,031 - BookFormatter - INFO - Índice pré-organizado detectado: C:\Users\marqu\Documents\GitHub\formatadorlivro\INDEX_PREORGANIZADO.md. Mesclando com estado atual...
-2026-04-27 22:47:18,037 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-27_224718.json
-2026-04-27 22:47:18,039 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-27 22:47:18,046 - BookFormatter - INFO - Índice mesclado: 184 capítulo(s) adicionados, 19 seção(ões) novas, 184 entrada(s) adicionadas na ordem.
-2026-04-27 22:47:18,046 - BookFormatter - INFO - Mesclagem do índice pré-organizado concluída.
-2026-04-27 22:48:09,369 - BookFormatter - INFO - Índice pré-organizado detectado: C:\Users\marqu\Documents\GitHub\formatadorlivro\INDEX_PREORGANIZADO.md. Mesclando com estado atual...
-2026-04-27 22:48:09,372 - BookFormatter - INFO - Backup criado: .cache\backups\progresso_2026-04-27_224809.json
-2026-04-27 22:48:09,376 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
-2026-04-27 22:48:09,380 - BookFormatter - INFO - Índice mesclado: 0 capítulo(s) adicionados, 0 seção(ões) novas, 0 entrada(s) adicionadas na ordem.
-2026-04-27 22:48:09,380 - BookFormatter - INFO - Mesclagem do índice pré-organizado concluída.
+2026-04-29 15:29:34,089 - BookFormatter - INFO - Log reiniciado para novo capítulo: Afecçõesdermartologicas MBE.docx
+2026-04-29 15:29:34,090 - BookFormatter - INFO - Processando arquivo: Afecçõesdermartologicas MBE.docx
+2026-04-29 15:29:34,092 - BookFormatter - INFO - Backup criado: C:\Users\marqu\Documents\GitHub\formatadorlivro\.cache\backups\progresso_2026-04-29_152934.json
+2026-04-29 15:29:34,093 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
+2026-04-29 15:29:34,096 - BookFormatter - INFO - Extraindo texto de: temp\Afecçõesdermartologicas MBE.docx
+2026-04-29 15:29:34,203 - BookFormatter - INFO - Resumos anteriores agregados: 0 capítulo(s)
+2026-04-29 15:29:34,204 - BookFormatter - INFO - Enviando para IA: Afecçõesdermartologicas MBE.docx
+2026-04-29 15:29:34,815 - BookFormatter - INFO - [Pipeline] Início do capítulo 'Afecçõesdermartologicas MBE.docx' (modo=PARÁGRAFOS, bloqueio_citacoes=ON)
+2026-04-29 15:29:34,844 - BookFormatter - INFO - ============================================================
+2026-04-29 15:29:34,844 - BookFormatter - INFO - Iniciando processamento de capítulo com IA
+2026-04-29 15:29:34,844 - BookFormatter - INFO - ============================================================
+2026-04-29 15:29:34,844 - BookFormatter - INFO - Tentando modelo: llama-3.3-70b-versatile
+2026-04-29 15:29:34,844 - BookFormatter - INFO - Verificando cache para este capítulo...
+2026-04-29 15:29:34,845 - BookFormatter - INFO - Modo estrito por parágrafos ativado
+2026-04-29 15:29:35,733 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 1 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:29:35,757 - BookFormatter - WARNING - Rate limit atingido. Aguardando 15.29s...
+2026-04-29 15:29:51,052 - BookFormatter - INFO - Modo estrito por parágrafos ativado
+2026-04-29 15:29:51,100 - BookFormatter - ERROR - Rate limit persistente após 2 tentativas
+2026-04-29 15:29:51,101 - BookFormatter - INFO - Tentando modelo: llama-3.1-8b-instant
+2026-04-29 15:29:51,101 - BookFormatter - INFO - Verificando cache para este capítulo...
+2026-04-29 15:29:51,101 - BookFormatter - INFO - Modo estrito por parágrafos ativado
+2026-04-29 15:29:52,267 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 1 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:29:52,866 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 2 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:29:53,605 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 3 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:29:54,136 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 4 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:29:55,187 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 5 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:30:04,225 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 6 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:30:11,829 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 7 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:30:23,380 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 8 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:30:31,118 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 9 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:30:39,573 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 10 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:30:49,263 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 11 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:30:57,600 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 12 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:31:00,386 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 13 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:31:20,988 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 15 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:31:28,515 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 16 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:31:36,410 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 17 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:31:44,473 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 18 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:31:52,979 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 19 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:32:02,443 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 20 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:32:09,147 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 21 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:32:11,879 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 22 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:32:21,350 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 23 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:32:30,915 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 24 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:32:39,560 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 25 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:32:50,107 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 26 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:33:00,844 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 27 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:33:08,653 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 28 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:33:12,212 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 29 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:33:29,612 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 31 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:33:57,185 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 32 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:34:30,815 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 33 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:34:53,420 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 34 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:34:53,776 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 35 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:34:54,348 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 36 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:35:01,405 - BookFormatter - WARNING - Rate limit atingido. Aguardando 15.60s...
+2026-04-29 15:35:17,007 - BookFormatter - INFO - Modo estrito por parágrafos ativado
+2026-04-29 15:35:17,610 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 1 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:35:18,039 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 2 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:35:20,760 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 3 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:35:32,168 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 4 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:35:41,879 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 5 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:35:54,182 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 6 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:36:09,875 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 7 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:36:18,544 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 8 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:36:27,284 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 9 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:36:35,732 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 10 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:36:48,293 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 11 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:36:56,867 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 12 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:36:57,727 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 13 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:37:12,278 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 14 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:37:12,905 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 15 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:37:30,824 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 17 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:37:49,089 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 19 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:38:07,511 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 20 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:38:08,011 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 21 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:38:25,830 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 22 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:38:36,411 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 23 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:38:36,847 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 24 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:38:50,800 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 25 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:38:51,298 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 26 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:39:10,053 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 27 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:39:10,602 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 28 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:39:11,016 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 29 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:39:17,711 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 30 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:39:59,775 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 32 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:40:36,370 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 33 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:40:41,837 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 34 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:40:58,359 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 35 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:41:05,900 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 36 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:41:14,546 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 37 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:41:18,917 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 38 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:41:41,953 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 40 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:41:50,426 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 41 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:41:56,401 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 42 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:42:16,821 - BookFormatter - WARNING - [Refs] Placeholders alterados no parágrafo 44 de 'Afecçõesdermartologicas MBE.docx'. Aplicando fallback para preservar citação.
+2026-04-29 15:42:21,873 - BookFormatter - ERROR - Rate limit persistente após 2 tentativas
+2026-04-29 15:42:21,874 - BookFormatter - ERROR - Todos os modelos falharam. Último erro: Error code: 429 - {'error': {'message': 'Rate limit reached for model `llama-3.1-8b-instant` in organization `org_01kp3yjr3ff2w8mjsxe47kb63b` service tier `on_demand` on tokens per minute (TPM): Limit 6000, Used 4168, Requested 2038. Please try again in 2.06s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}
+2026-04-29 15:42:21,874 - BookFormatter - ERROR - Erro da API ao processar Afecçõesdermartologicas MBE.docx: Processamento falhou com todos os modelos. Erro: Error code: 429 - {'error': {'message': 'Rate limit reached for model `llama-3.1-8b-instant` in organization `org_01kp3yjr3ff2w8mjsxe47kb63b` service tier `on_demand` on tokens per minute (TPM): Limit 6000, Used 4168, Requested 2038. Please try again in 2.06s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}
+2026-04-29 15:42:21,878 - BookFormatter - INFO - Backup criado: C:\Users\marqu\Documents\GitHub\formatadorlivro\.cache\backups\progresso_2026-04-29_154221.json
+2026-04-29 15:42:21,879 - BookFormatter - INFO - Limpeza de backups: 1 arquivo(s) removido(s)
+2026-04-29 15:42:21,883 - BookFormatter - INFO - Processamento concluído: 0 sucesso(s), 1 erro(s)

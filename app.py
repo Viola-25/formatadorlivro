@@ -645,6 +645,8 @@ def main():
             st.header("Gerenciar e Editar Capítulos")
 
             status_data = st.session_state.app_state.get("status_capitulos", {})
+            filtered_chapters = []
+            selected_chapter = None
             if not status_data:
                 st.info("Nenhum capítulo processado para gerenciar. Por favor, processe arquivos na aba 'Processador' primeiro.")
             else:
@@ -705,7 +707,7 @@ def main():
             
             col_btn1, col_btn2 = st.columns(2)
             with col_btn1:
-                if st.button("🗑️ Excluir Capítulo", use_container_width=True):
+                if st.button("🗑️ Excluir Capítulo", use_container_width=True, disabled=not bool(selected_chapter)):
                     success, msg = delete_chapter_safe(
                         st.session_state.app_state,
                         selected_chapter,
@@ -792,33 +794,36 @@ def main():
             st.divider()
             st.subheader("📝 Edição Manual do Texto (Pré-formatação)")
             st.markdown("Faltou algo no texto gerado pela IA? Edite diretamente aqui antes de re-gerar o Word/PDF final.")
-            ai_txt_path = os.path.join(TEMP_DIR, f"{selected_chapter}.ai.txt")
-            
-            if os.path.exists(ai_txt_path):
-                with open(ai_txt_path, "r", encoding="utf-8") as f:
-                    current_text = f.read()
-                    
-                edited_text = st.text_area("Texto cru com as Tags estruturais", value=current_text, height=450)
-                
-                if st.button("💾 Salvar e Reformatar Arquivos", use_container_width=True):
-                    with open(ai_txt_path, "w", encoding="utf-8") as f:
-                        f.write(edited_text)
-                    
-                    with st.spinner("Reformatando DOCX e PDF..."):
-                        output_filename = generate_formatted_docx(edited_text, selected_chapter)
-                        final_path = os.path.join(OUTPUT_DIR, output_filename)
-                        if os.path.exists(output_filename):
-                            os.rename(output_filename, final_path)
-                            
-                        try:
-                            convert_to_pdf(final_path)
-                        except Exception as e:
-                            st.warning(f"Erro ao gerar PDF: {e}")
-                            
-                    st.success("✅ Arquivos reconstruídos com base nas suas edições com sucesso!")
-                    st.balloons()
+            if selected_chapter:
+                ai_txt_path = os.path.join(TEMP_DIR, f"{selected_chapter}.ai.txt")
+
+                if os.path.exists(ai_txt_path):
+                    with open(ai_txt_path, "r", encoding="utf-8") as f:
+                        current_text = f.read()
+
+                    edited_text = st.text_area("Texto cru com as Tags estruturais", value=current_text, height=450)
+
+                    if st.button("💾 Salvar e Reformatar Arquivos", use_container_width=True):
+                        with open(ai_txt_path, "w", encoding="utf-8") as f:
+                            f.write(edited_text)
+
+                        with st.spinner("Reformatando DOCX e PDF..."):
+                            output_filename = generate_formatted_docx(edited_text, selected_chapter)
+                            final_path = os.path.join(OUTPUT_DIR, output_filename)
+                            if os.path.exists(output_filename):
+                                os.rename(output_filename, final_path)
+
+                            try:
+                                convert_to_pdf(final_path)
+                            except Exception as e:
+                                st.warning(f"Erro ao gerar PDF: {e}")
+
+                        st.success("✅ Arquivos reconstruídos com base nas suas edições com sucesso!")
+                        st.balloons()
+                else:
+                    st.warning("⚠️ O texto base deste capítulo não foi encontrado. Processe-o novamente na aba principal para habilitar a edição manual.")
             else:
-                st.warning("⚠️ O texto base deste capítulo não foi encontrado. Processe-o novamente na aba principal para habilitar a edição manual.")
+                st.info("Selecione um capítulo para habilitar a edição manual.")
     
     with aba4:
         st.header("📚 Organizar e Reordenar Índice")
